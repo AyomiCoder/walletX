@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Send, DollarSign, CreditCard, PieChart, Settings, PlusCircle, X, Download, LogOut, User, Lock } from 'lucide-react'
+import { Send, DollarSign, CreditCard, PieChart, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote } from 'lucide-react'
 
 
 export default function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<string | null>(null)
+  const [isCopied, setIsCopied] = useState(false)
 
   const openModal = (modalName: string) => {
     setActiveModal(modalName)
@@ -16,6 +17,12 @@ export default function Dashboard() {
 
   const toggleSettings = () => {
     setIsSettingsOpen(!isSettingsOpen)
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText('ayomicoder')
+    setIsCopied(true) // Show notification
+    setTimeout(() => setIsCopied(false), 3000) // Hide notification after 3 seconds
   }
 
   return (
@@ -31,7 +38,7 @@ export default function Dashboard() {
               height={40}
               className="rounded-full"
             />
-            <h1 className="text-xl font-bold">Welcome back, Alex!</h1>
+            <h1 className="text-xl font-bold">🙋🏽‍♂️Hi, Aluko</h1>
           </div>
           <button onClick={toggleSettings} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <Settings className="w-6 h-6 text-gray-600" />
@@ -175,7 +182,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg p-6 w-96">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">
-                {activeModal === 'addMoney' && 'Add Money'}
+                {activeModal === 'addMoney' && 'Fund your Account'}
                 {activeModal === 'sendMoney' && 'Send Money'}
                 {activeModal === 'requestMoney' && 'Request Money'}
                 {activeModal === 'manageCards' && 'Manage Cards'}
@@ -191,16 +198,45 @@ export default function Dashboard() {
             <div className="space-y-4">
               {/* Add specific form fields or content for each modal type */}
               {activeModal === 'addMoney' && (
-                <form className="space-y-4">
-                  <div>
-                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
-                    <input type="number" id="amount" name="amount" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                  </div>
-                  <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                    Add Money
-                  </button>
-                </form>
-              )}
+        <form className="space-y-4">
+          {/* Username Display with Copy Icon */}
+          <div className="flex justify-between items-center bg-gray-100 p-2 rounded-md">
+            <span className="text-sm font-medium text-gray-700">@ayomicoder</span>
+            <button 
+              type="button" 
+              onClick={handleCopy} 
+              className="flex items-center text-blue-600 text-sm focus:outline-none"
+            >
+              <StickyNote className="w-5 h-5 mr-1 hover:animate-pulse" />
+              Copy
+            </button>
+          </div>
+
+          <div>
+            <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
+            <input 
+              type="number" 
+              id="amount" 
+              name="amount" 
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" 
+            />
+          </div>
+          <button 
+            type="submit" 
+            className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Fund
+          </button>
+        </form>
+      )}
+
+      {/* Custom Notification */}
+      {isCopied && (
+        <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-md shadow-md">
+          Username copied successfully!
+        </div>
+      )}
+
               {activeModal === 'sendMoney' && (
                 <form className="space-y-4">
                   <div>
