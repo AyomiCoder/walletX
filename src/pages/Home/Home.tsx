@@ -16,57 +16,98 @@ export default function LandingPage() {
     const [error, setError] = useState('');
     const [token, setToken] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
+    const [name, setName] = useState<string | null>(null);
 
 
-    // Handle register form submission
-    const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setError('');
-        setSuccessMessage('');
-        try {
-            const response = await fetch('http://localhost:8080/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(registerData),
+ // Handle register form submission
+ const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+
+    try {
+        // Send registration request
+        const response = await fetch('http://localhost:8080/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(registerData),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            setSuccessMessage('Account created successfully!');
+            localStorage.setItem('token', data.token); // Save the token from the registration response
+
+            // Fetch user profile after registration
+            const userResponse = await fetch('http://localhost:8080/api/auth/profile', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${data.token}`, // Use the token from registration
+                },
             });
-            const data = await response.json();
-            if (response.ok) {
-                setSuccessMessage('Account created successfully!'); // Set success message
-                setIsRegisterModalOpen(false); // Close modal after success
-                navigate('/dashboard'); // Redirect to dashboard
-            } else {
-                setError(data.message || 'Something went wrong');
-            }
-        } catch (error) {
-            setError('Failed to register');
-        }
-    };
 
-    // Handle login form submission
-    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setError('');
-        setSuccessMessage('');
-        try {
-            const response = await fetch('http://localhost:8080/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loginData),
-            });
-            const data = await response.json();
-            if (response.ok) {
-                setToken(data.token);
-                localStorage.setItem('token', data.token); // Save token for future use
-                setSuccessMessage('Login successful!'); // Set success message
-                setIsLoginModalOpen(false); // Close modal after success
-                navigate('/dashboard'); // Redirect to dashboard
+            const userData = await userResponse.json();
+
+            if (userResponse.ok) {
+                setName(userData.fullName); // Set the user name after fetching the profile
+                navigate('/dashboard'); // Redirect to dashboard after success
             } else {
-                setError(data.message || 'Invalid login credentials');
+                setError('Failed to load user profile.');
             }
-        } catch (error) {
-            setError('Failed to login');
+        } else {
+            setError(data.message || 'Something went wrong');
         }
-    };
+    } catch (error) {
+        setError('Failed to register');
+    }
+};
+
+
+// Handle login form submission
+const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+
+    try {
+        const response = await fetch('http://localhost:8080/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(loginData),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            setToken(data.token);
+            localStorage.setItem('token', data.token); // Save the token in localStorage
+            setSuccessMessage('Login successful!');
+
+            // Fetch user profile after login
+            const userResponse = await fetch('http://localhost:8080/api/auth/profile', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${data.token}`,
+                },
+            });
+
+            const userData = await userResponse.json();
+
+            if (userResponse.ok) {
+                setName(userData.fullName); // Set the user name after fetching
+                navigate('/dashboard'); // Redirect to dashboard after success
+            } else {
+                setError('Failed to load user profile.');
+            }
+        } else {
+            setError(data.message || 'Invalid login credentials');
+        }
+    } catch (error) {
+        setError('Failed to login');
+    }
+};
+
 
     // Clear success message after 3 seconds
     useEffect(() => {
@@ -122,8 +163,8 @@ export default function LandingPage() {
                                 FAQ
                             </Link>
                         </div>
-                        <button onClick={openRegisterModal} className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium">
-                            Get Started
+                        <button onClick={openLoginModal} className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium">
+                            Sign In
                         </button>
                     </nav>
 
