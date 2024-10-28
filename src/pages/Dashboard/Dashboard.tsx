@@ -607,7 +607,7 @@ export default function Dashboard() {
                       }
 
                       try {
-                        const response = await fetch('http://localhost:8080/api/auth/download-history', {
+                        const response = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
                           method: 'GET',
                           headers: {
                             Authorization: `Bearer ${token}`,
