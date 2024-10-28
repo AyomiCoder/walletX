@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { SetStateAction, useEffect, useState } from 'react'
 import { Send, DollarSign, CreditCard, PieChart, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote } from 'lucide-react'
 
 
@@ -13,7 +13,20 @@ export default function Dashboard() {
   const [username, setUsername] = useState<string | null>(null);
   const [isPinSetSuccess, setIsPinSetSuccess] = useState(false);
   const [isFundSuccess, setIsFundSuccess] = useState(false);
+  const [transactions, setTransactions] = useState([]); // Initialize transaction history
   const [notification, setNotification] = useState({ message: '', type: '', visible: false });
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [recipient, setRecipient] = useState('');
+  const [sendAmount, setSendAmount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
+
+  const openPinModal = (rec: SetStateAction<string>, amt: SetStateAction<number>) => {
+    setRecipient(rec);
+    setSendAmount(amt);
+    setPinModalOpen(true);
+  };
+
 
 
 
@@ -27,10 +40,10 @@ export default function Dashboard() {
       }
 
       try {
-        const response = await fetch('http://localhost:8080/api/auth/profile', {
+        const response = await fetch('https://walletx-server.vercel.app/api/auth/profile', {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -39,6 +52,7 @@ export default function Dashboard() {
           setName(data.fullName); // Set user name
           setUsername(data.username);
           setBalance(data.balance);
+          setTransactions(data.transactions || []); // Initialize transactions if provided
         } else {
           const errorData = await response.json();
           setError(errorData.message);
@@ -51,31 +65,76 @@ export default function Dashboard() {
     fetchUserData(); // Call the function
   }, []); // Empty dependency array to run only on mount
 
+   // New useEffect for fetching transaction history
+   useEffect(() => {
+    const fetchTransactionHistory = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setTransactionError('User not authenticated');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Transform the transaction data to match your frontend format
+          const formattedTransactions = data.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number }) => ({
+            type: transaction.type,
+            name: transaction.description,
+            date: new Date(transaction.createdAt).toLocaleString(),
+            amount: transaction.type === 'debit' 
+              ? `-$${transaction.amount.toFixed(2)}` 
+              : `$${transaction.amount.toFixed(2)}`
+          }));
+          setTransactions(formattedTransactions);
+        } else {
+          const errorData = await response.json();
+          setTransactionError(errorData.message);
+        }
+      } catch (error) {
+        setTransactionError('Failed to fetch transaction history');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTransactionHistory();
+  }, []);
+
+
   const handleCopy = () => {
     if (username) {
       navigator.clipboard.writeText(username); // Copy the dynamic username
       setIsCopied(true); // Show notification
       setTimeout(() => setIsCopied(false), 3000); // Hide notification after 3 seconds
     }
-  }
+  };
 
   const openModal = (modalName: string) => {
-    setActiveModal(modalName)
-  }
+    setActiveModal(modalName);
+  };
 
   const closeModal = () => {
-    setActiveModal(null)
-  }
+    setActiveModal(null);
+  };
 
   const toggleSettings = () => {
-    setIsSettingsOpen(!isSettingsOpen)
-  }
+    setIsSettingsOpen(!isSettingsOpen);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    setName(null)
+    setName(null);
     window.location.href = './';
-  }
+  };
 
   // Function to show notification
   const showNotification = (message: string, type: string) => {
@@ -85,7 +144,8 @@ export default function Dashboard() {
     }, 3000);
   };
 
-  // Modify the handleAddMoney function
+ 
+  // Modified handleAddMoney function to refresh transactions after funding
   const handleAddMoney = async (amount: number) => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -94,7 +154,7 @@ export default function Dashboard() {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/auth/fund', {
+      const response = await fetch('https://walletx-server.vercel.app/api/auth/fund', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,9 +165,31 @@ export default function Dashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setBalance(data.newBalance); // Update balance based on the backend response
+        setBalance(data.newBalance);
         showNotification('Wallet funded successfully!', 'success');
-        closeModal(); // Close modal after success
+        
+        // Fetch updated transaction history
+        const historyResponse = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          const formattedTransactions = historyData.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number }) => ({
+            type: transaction.type,
+            name: transaction.description,
+            date: new Date(transaction.createdAt).toLocaleString(),
+            amount: transaction.type === 'debit' 
+              ? `-$${transaction.amount.toFixed(2)}` 
+              : `$${transaction.amount.toFixed(2)}`
+          }));
+          setTransactions(formattedTransactions);
+        }
+        
+        closeModal();
       } else {
         const errorData = await response.json();
         setError(errorData.message);
@@ -117,6 +199,65 @@ export default function Dashboard() {
     }
   };
 
+  // Send money
+ // Modified handleSendMoney function to refresh transactions after sending
+ const handleSendMoney = async (recipient: string, amount: number, userPin: string) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    setError('User not authenticated');
+    return;
+  }
+
+  try {
+    const response = await fetch('https://walletx-server.vercel.app/api/auth/send-money', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ recipientUsername: recipient, amount, pin: userPin }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setBalance(data.newBalance);
+      showNotification('Money sent successfully!', 'success');
+
+      // Fetch updated transaction history
+      const historyResponse = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        const formattedTransactions = historyData.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number }) => ({
+          type: transaction.type,
+          name: transaction.description,
+          date: new Date(transaction.createdAt).toLocaleString(),
+          amount: transaction.type === 'debit' 
+            ? `-$${transaction.amount.toFixed(2)}` 
+            : `$${transaction.amount.toFixed(2)}`
+        }));
+        setTransactions(formattedTransactions);
+      }
+      
+      closeModal();
+    } else {
+      const errorData = await response.json();
+      setError(errorData.message);
+    }
+  } catch (error) {
+    setError('Failed to send money');
+  }
+};
+
+  const handlePinSubmit = async (pin: string) => {
+    await handleSendMoney(recipient, sendAmount, pin);
+    setPinModalOpen(false);
+  };
 
   const handleSetPin = async (newPin: string) => {
     const token = localStorage.getItem('token');
@@ -124,9 +265,9 @@ export default function Dashboard() {
       setError('User not authenticated');
       return false; // Indicate failure
     }
-  
+
     try {
-      const response = await fetch('http://localhost:8080/api/auth/set-pin', {
+      const response = await fetch('https://walletx-server.vercel.app/api/auth/set-pin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +275,7 @@ export default function Dashboard() {
         },
         body: JSON.stringify({ pin: newPin }),
       });
-  
+
       if (response.ok) {
         showNotification('PIN set successfully!', 'success');
         return true; // Indicate success
@@ -148,7 +289,6 @@ export default function Dashboard() {
       return false; // Indicate failure
     }
   };
-  
 
   function closeSettings() {
     throw new Error('Function not implemented.')
@@ -221,37 +361,33 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Transactions */}
+          {/* Transaction History */}
           <div className="mb-8">
-            <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
+            <h3 className="text-lg font-semibold mb-4">Transaction History</h3>
             <div className="space-y-4">
-              {[
-                { name: "Sarah J.", amount: "-$45.00", date: "Today", type: "sent" },
-                { name: "Netflix", amount: "-$12.99", date: "Yesterday", type: "subscription" },
-                { name: "Payroll", amount: "+$2,500.00", date: "Mar 1", type: "received" },
-              ].map((transaction, index) => (
-                <div key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === 'sent' ? 'bg-red-100 text-red-600' :
-                      transaction.type === 'received' ? 'bg-green-100 text-green-600' :
-                        'bg-blue-100 text-blue-600'
-                      }`}>
-                      {transaction.type === 'sent' && <Send className="w-5 h-5" />}
-                      {transaction.type === 'received' && <DollarSign className="w-5 h-5" />}
-                      {transaction.type === 'subscription' && <CreditCard className="w-5 h-5" />}
+              {transactions.length > 0 ? (
+                transactions.map((transaction, index) => (
+                  <div key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {transaction.type === 'credit' ? <DollarSign className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <p className="font-medium">{transaction.name}</p>
+                        <p className="text-sm text-gray-500">{transaction.date}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{transaction.name}</p>
-                      <p className="text-sm text-gray-500">{transaction.date}</p>
-                    </div>
+                    <p className={`font-medium ${transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                      {transaction.amount}
+                    </p>
                   </div>
-                  <p className={`font-medium ${transaction.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                    {transaction.amount}
-                  </p>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500">No transactions available.</p>
+              )}
             </div>
           </div>
+
 
           {/* Spending Overview */}
           <div>
@@ -311,131 +447,251 @@ export default function Dashboard() {
 
       {/* Modals */}
       {activeModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4"> {/* Responsive width and margin */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">
-          {activeModal === 'addMoney' && 'Fund your Account'}
-          {activeModal === 'sendMoney' && 'Send Money'}
-          {activeModal === 'requestMoney' && 'Request Money'}
-          {activeModal === 'manageCards' && 'Manage Cards'}
-          {activeModal === 'setPin' && 'Set PIN'}
-          {activeModal === 'downloadHistory' && 'Download Transaction History'}
-          {activeModal === 'editProfile' && 'Edit Profile'}
-          {activeModal === 'logout' && 'Logout'}
-        </h2>
-        <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-      <div className="space-y-4">
-        {activeModal === 'setPin' && (
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const newPin = (e.target as HTMLFormElement).pin.value;
-              const success = await handleSetPin(newPin);
-              if (success) {
-                closeModal(); // Close both modals
-                closeSettings(); // Close the settings modal if it's open
-              }
-            }}
-            className="space-y-4"
-          >
-            <label htmlFor="pin" className="block text-sm font-medium text-gray-700">Set PIN</label>
-            <input
-              type="password"
-              id="pin"
-              name="pin"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              required
-            />
-            <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md">
-              Set PIN
-            </button>
-            {error && (
-              <div className="mt-4 p-2 bg-red-100 text-red-600 rounded">
-                {error}
-              </div>
-            )}
-          </form>
-        )}
-
-        {activeModal === 'addMoney' && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const amount = parseFloat((e.target as HTMLFormElement).amount.value);
-              handleAddMoney(amount);
-              closeModal(); // Close modal after success
-            }}
-            className="space-y-4"
-          >
-            {/* Username Display with Copy Icon */}
-            <div className="flex justify-between items-center bg-gray-100 p-2 rounded-md">
-              <span className="text-sm font-medium text-gray-700">@{username || 'username'}</span>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="flex items-center text-blue-600 text-sm focus:outline-none"
-              >
-                <StickyNote className="w-5 h-5 mr-1 hover:animate-pulse" />
-                Copy
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4"> {/* Responsive width and margin */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {activeModal === 'addMoney' && 'Fund your Account'}
+                {activeModal === 'sendMoney' && 'Send Money'}
+                {activeModal === 'requestMoney' && 'Request Money'}
+                {activeModal === 'manageCards' && 'Manage Cards'}
+                {activeModal === 'setPin' && 'Set PIN'}
+                {activeModal === 'downloadHistory' && 'Download Transaction History'}
+                {activeModal === 'editProfile' && 'Edit Profile'}
+                {activeModal === 'logout' && 'Logout'}
+              </h2>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
+                <X className="w-6 h-6" />
               </button>
             </div>
+            <div className="space-y-4">
+              {activeModal === 'setPin' && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const newPin = (e.target as HTMLFormElement).pin.value;
+                    const success = await handleSetPin(newPin);
+                    if (success) {
+                      closeModal(); // Close both modals
+                      closeSettings(); // Close the settings modal if it's open
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <label htmlFor="pin" className="block text-sm font-medium text-gray-700">Set PIN</label>
+                  <input
+                    type="password"
+                    id="pin"
+                    name="pin"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                    required
+                  />
+                  <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md">
+                    Set PIN
+                  </button>
+                  {error && (
+                    <div className="mt-4 p-2 bg-red-100 text-red-600 rounded">
+                      {error}
+                    </div>
+                  )}
+                </form>
+              )}
 
-            <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
-              <input
-                type="number"
-                id="amount"
-                name="amount"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
+              {activeModal === 'addMoney' && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const amount = parseFloat((e.target as HTMLFormElement).amount.value);
+                    handleAddMoney(amount);
+                    closeModal(); // Close modal after success
+                  }}
+                  className="space-y-4"
+                >
+                  {/* Username Display with Copy Icon */}
+                  <div className="flex justify-between items-center bg-gray-100 p-2 rounded-md">
+                    <span className="text-sm font-medium text-gray-700">@{username || 'username'}</span>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="flex items-center text-blue-600 text-sm focus:outline-none"
+                    >
+                      <StickyNote className="w-5 h-5 mr-1 hover:animate-pulse" />
+                      Copy
+                    </button>
+                  </div>
+
+                  <div>
+                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
+                    <input
+                      type="number"
+                      id="amount"
+                      name="amount"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Fund
+                  </button>
+                  {error && (
+                    <div className="mt-4 p-2 bg-red-100 text-red-600 rounded">
+                      {error}
+                    </div>
+                  )}
+                </form>
+              )}
+
+              {activeModal === 'sendMoney' && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const recipient = (e.target as HTMLFormElement).recipient.value;
+                    const amount = parseFloat((e.target as HTMLFormElement).amount.value);
+                    const userPin = prompt("Please enter your PIN:");
+                    if (userPin) {
+                      await handleSendMoney(recipient, amount, userPin);
+                    }
+                    if (userPin) {
+                      await handleSendMoney(recipient, amount, userPin);
+                      closeModal(); // Close modal after success
+                    } else {
+                      setError('PIN is required to send money.');
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label htmlFor="recipient" className="block text-sm font-medium text-gray-700">Recipient</label>
+                    <input type="text" id="recipient" name="recipient" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                  </div>
+                  <div>
+                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
+                    <input type="number" id="amount" name="amount" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
+                  </div>
+                  <button
+                    type="button"
+                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-md"
+                  >
+                    Send Money
+                  </button>
+                  {error && (
+                    <div className="mt-4 p-2 bg-red-100 text-red-600 rounded">
+                      {error}
+                    </div>
+                  )}
+                </form>
+              )}
+
+
+              {/* Custom Notification */}
+              {isCopied && (
+                <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-md shadow-md">
+                  Username copied successfully!
+                </div>
+              )}
+
+
+              {activeModal === 'downloadHistory' && (
+                <div>
+                  <p className="text-sm text-gray-600 mb-4">Your transaction history will be downloaded as a CSV file.</p>
+                  <button
+                    onClick={async () => {
+                      // Add functionality to download the transaction history
+                      const token = localStorage.getItem('token');
+                      if (!token) {
+                        setError('User not authenticated');
+                        return;
+                      }
+
+                      try {
+                        const response = await fetch('http://localhost:8080/api/auth/download-history', {
+                          method: 'GET',
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
+                        });
+
+                        if (response.ok) {
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = 'transaction_history.csv'; // Filename for download
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          showNotification('Transaction history downloaded!', 'success');
+                        } else {
+                          const errorData = await response.json();
+                          setError(errorData.message);
+                        }
+                      } catch (error) {
+                        setError('Failed to download transaction history');
+                      }
+                    }}
+                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Download
+                  </button>
+                  {error && (
+                    <div className="mt-4 p-2 bg-red-100 text-red-600 rounded">
+                      {error}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeModal === 'editProfile' && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    // Handle profile editing logic here
+                    const newFullName = (e.target as HTMLFormElement).fullName.value;
+                    const newUsername = (e.target as HTMLFormElement).username.value;
+
+                    // Fetch and update profile logic...
+                    // Close modal after success
+                    closeModal();
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">Full Name</label>
+                    <input
+                      type="text"
+                      id="fullName"
+                      name="fullName"
+                      defaultValue={name || ''}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+                    <input
+                      type="text"
+                      id="username"
+                      name="username"
+                      defaultValue={username || ''}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Save Changes
+                  </button>
+                </form>
+              )}
             </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Fund
-            </button>
-            {error && (
-              <div className="mt-4 p-2 bg-red-100 text-red-600 rounded">
-                {error}
-              </div>
-            )}
-          </form>
-        )}
-
-        {/* Custom Notification */}
-        {isCopied && (
-          <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-md shadow-md">
-            Username copied successfully!
           </div>
-        )}
-
-        {activeModal === 'sendMoney' && (
-          <form className="space-y-4">
-            <div>
-              <label htmlFor="recipient" className="block text-sm font-medium text-gray-700">Recipient</label>
-              <input type="text" id="recipient" name="recipient" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            </div>
-            <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Amount</label>
-              <input type="number" id="amount" name="amount" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            </div>
-            <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-              Send Money
-            </button>
-          </form>
-        )}
-        {/* Add similar form structures for other modal types */}
-      </div>
+        </div>
+      )}
     </div>
-  </div>
-)}
-
-    </div>
-  )
+  );
 }

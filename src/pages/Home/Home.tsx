@@ -27,7 +27,7 @@ export default function LandingPage() {
 
     try {
         // Send registration request
-        const response = await fetch('http://localhost:8080/api/auth/register', {
+        const response = await fetch('https://walletx-server.vercel.app/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(registerData),
@@ -40,7 +40,7 @@ export default function LandingPage() {
             localStorage.setItem('token', data.token); // Save the token from the registration response
 
             // Fetch user profile after registration
-            const userResponse = await fetch('http://localhost:8080/api/auth/profile', {
+            const userResponse = await fetch('https://walletx-server.vercel.app/api/auth/profile', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${data.token}`, // Use the token from registration
@@ -71,7 +71,7 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     setSuccessMessage('');
 
     try {
-        const response = await fetch('http://localhost:8080/api/auth/login', {
+        const response = await fetch('https://walletx-server.vercel.app/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(loginData),
@@ -85,7 +85,7 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
             setSuccessMessage('Login successful!');
 
             // Fetch user profile after login
-            const userResponse = await fetch('http://localhost:8080/api/auth/profile', {
+            const userResponse = await fetch('https://walletx-server.vercel.app/api/auth/profile', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${data.token}`,
