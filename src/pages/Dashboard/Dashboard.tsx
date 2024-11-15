@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Send, CreditCard, PieChart, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote, CoinsIcon, Repeat, ChevronDown, ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { Send, CreditCard, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote, CoinsIcon, Repeat, ChevronDown, ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 
@@ -19,7 +19,6 @@ export default function Dashboard() {
   const [pinModalOpen, setPinModalOpen] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [sendAmount, setSendAmount] = useState(0)
-  const [, setIsLoading] = useState(false)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [newPin, setNewPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')

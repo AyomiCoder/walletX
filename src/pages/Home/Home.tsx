@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Send, Repeat, Shield, Users, Facebook, Twitter, Instagram, Linkedin, X, ChevronDown, ChevronUp, Star, DollarSign, CreditCard, PieChart, Settings, PlusCircle, Github, Globe, Coins } from 'lucide-react'
+import { Send, Repeat, Shield, Users, Twitter, Linkedin, X, ChevronDown, ChevronUp, Star, CreditCard, PieChart, Settings, PlusCircle, Github, Globe, Coins } from 'lucide-react'
 import { Link } from 'react-scroll';
 import { useNavigate } from 'react-router-dom';
 import Notification from '../../components/Notification/Notification';
@@ -14,9 +14,9 @@ export default function LandingPage() {
     const [registerData, setRegisterData] = useState({ fullName: '', username: '', email: '', password: '' });
     const [loginData, setLoginData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
-    const [token, setToken] = useState(null);
+    const [, setToken] = useState(null);
     const [successMessage, setSuccessMessage] = useState('');
-    const [name, setName] = useState<string | null>(null);
+    const [, setName] = useState<string | null>(null);
 
 
  // Handle register form submission
