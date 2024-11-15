@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Send, Repeat, Shield, Users, Facebook, Twitter, Instagram, Linkedin, X, ChevronDown, ChevronUp, Star, DollarSign, CreditCard, PieChart, Settings, PlusCircle } from 'lucide-react'
+import { Send, Repeat, Shield, Users, Facebook, Twitter, Instagram, Linkedin, X, ChevronDown, ChevronUp, Star, DollarSign, CreditCard, PieChart, Settings, PlusCircle, Github, Globe, Coins } from 'lucide-react'
 import { Link } from 'react-scroll';
 import { useNavigate } from 'react-router-dom';
 import Notification from '../../components/Notification/Notification';
@@ -244,7 +244,7 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                                             <div className="flex items-center mb-4 md:mb-0">
                                                 <div className="text-center md:text-left">
                                                     <p className="text-gray-600">Total Balance</p>
-                                                    <h4 className="text-2xl md:text-3xl font-bold">$2,450.35</h4>
+                                                    <h4 className="text-2xl md:text-3xl font-bold">NGN2,450.35</h4>
                                                 </div>
                                                 <button className="ml-4 bg-blue-100 text-blue-600 p-2 rounded-full flex items-center" title="Add Money">
                                                     <PlusCircle className="w-6 h-6" />
@@ -257,7 +257,7 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                                                     <span className="sr-only">Send Money</span>
                                                 </button>
                                                 <button className="bg-green-100 text-green-600 p-2 rounded-full" title="Request Money">
-                                                    <DollarSign className="w-6 h-6" />
+                                                    <Repeat className="w-6 h-6" />
                                                     <span className="sr-only">Request Money</span>
                                                 </button>
                                                 <button className="bg-purple-100 text-purple-600 p-2 rounded-full" title="Manage Cards">
@@ -272,9 +272,9 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                                             <h5 className="text-lg font-semibold mb-4">Recent Transactions</h5>
                                             <div className="space-y-4">
                                                 {[
-                                                    { name: "Sarah J.", amount: "-$45.00", date: "Today", type: "sent" },
-                                                    { name: "Netflix", amount: "-$12.99", date: "Yesterday", type: "subscription" },
-                                                    { name: "Payroll", amount: "+$2,500.00", date: "Mar 1", type: "received" },
+                                                    { name: "Sarah J.", amount: "-NGN1,500.00", date: "Today", type: "sent" },
+                                                    { name: "Netflix", amount: "-NGN7,000.99", date: "Yesterday", type: "subscription" },
+                                                    { name: "Payroll", amount: "+NGN2,500.00", date: "Mar 1", type: "received" },
                                                 ].map((transaction, index) => (
                                                     <div key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
                                                         <div className="flex items-center space-x-3">
@@ -283,8 +283,8 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                                                                         'bg-blue-100 text-blue-600'
                                                                 }`}>
                                                                 {transaction.type === 'sent' && <Send className="w-5 h-5" />}
-                                                                {transaction.type === 'received' && <DollarSign className="w-5 h-5" />}
-                                                                {transaction.type === 'subscription' && <Repeat className="w-5 h-5" />}
+                                                                {transaction.type === 'received' && <Coins className="w-5 h-5" />}
+                                                                {transaction.type === 'subscription' && <CreditCard className="w-5 h-5" />}
                                                             </div>
                                                             <div>
                                                                 <p className="font-medium">{transaction.name}</p>
@@ -466,7 +466,7 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
             <footer className="bg-gray-100 mt-24">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        <div>
+                        {/* <div>
                             <h3 className="text-lg font-semibold mb-4">About WalletX</h3>
                             <ul className="space-y-2">
                                 <li><a href="#" className="text-gray-600 hover:text-blue-600">Our Story</a></li>
@@ -489,22 +489,22 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                                 <li><a href="#" className="text-gray-600 hover:text-blue-600">Blog</a></li>
                                 <li><a href="#" className="text-gray-600 hover:text-blue-600">Developers</a></li>
                             </ul>
-                        </div>
+                        </div> */}
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Connect</h3>
+                            {/* <h3 className="text-lg font-semibold mb-4">Connect</h3> */}
                             <div className="flex space-x-4">
-                                <a href="#" className="text-gray-600 hover:text-blue-600"><Facebook /></a>
-                                <a href="#" className="text-gray-600 hover:text-blue-600"><Twitter /></a>
-                                <a href="#" className="text-gray-600 hover:text-blue-600"><Instagram /></a>
-                                <a href="#" className="text-gray-600 hover:text-blue-600"><Linkedin /></a>
+                                <a href="https://github.com/AyomiCoder" className="text-gray-600 hover:text-blue-600" target='blank'><Github /></a>
+                                <a href="https://x.com/ayomicoder" className="text-gray-600 hover:text-blue-600" target='blank'><Twitter /></a>
+                                <a href="https://ayaluko.vercel.app" className="text-gray-600 hover:text-blue-600" target='blank'><Globe /></a>
+                                <a href="https://www.linkedin.com/in/ayomidealuko" className="text-gray-600 hover:text-blue-600" target='blank'><Linkedin /></a>
                             </div>
                         </div>
                     </div>
                     <div className="mt-8 pt-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
-                        <p className="text-gray-600">&copy; 2023 WalletX. All rights reserved.</p>
+                        <p className="text-gray-600">&copy; 2024 WalletX.</p>
                         <div className="mt-4 md:mt-0 flex space-x-4">
-                            <a href="#" className="text-gray-600 hover:text-blue-600">Privacy Policy</a>
-                            <a href="#" className="text-gray-600 hover:text-blue-600">Terms of Service</a>
+                            <a href="mailto:alukoayomide623@gmail.com" className="text-gray-600 hover:text-blue-600">Contact Dev</a>
+                            {/* <a href="#" className="text-gray-600 hover:text-blue-600">Terms of Service</a> */}
                         </div>
                     </div>
                 </div>

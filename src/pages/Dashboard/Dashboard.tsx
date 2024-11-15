@@ -1,156 +1,172 @@
-import { SetStateAction, useEffect, useState } from 'react'
-import { Send, DollarSign, CreditCard, PieChart, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Send, CreditCard, PieChart, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote, CoinsIcon, Repeat, ChevronDown, ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 
 export default function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [isCopied, setIsCopied] = useState(false)
-  const [name, setName] = useState<string | null>(null); // State to hold user name
-  const [error, setError] = useState<string | null>(null); // 
-  const [pin, setPin] = useState<string | null>(null); // PIN state
-  const [balance, setBalance] = useState<number>(0);
-  const [username, setUsername] = useState<string | null>(null);
-  const [isPinSetSuccess, setIsPinSetSuccess] = useState(false);
-  const [isFundSuccess, setIsFundSuccess] = useState(false);
-  const [transactions, setTransactions] = useState([]); // Initialize transaction history
-  const [notification, setNotification] = useState({ message: '', type: '', visible: false });
-  const [pinModalOpen, setPinModalOpen] = useState(false);
-  const [recipient, setRecipient] = useState('');
-  const [sendAmount, setSendAmount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [transactionError, setTransactionError] = useState<string | null>(null);
+  const [name, setName] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [balance, setBalance] = useState<number>(0)
+  const [username, setUsername] = useState<string | null>(null)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [displayedTransactions, setDisplayedTransactions] = useState<any[]>([])
+  const [showAllTransactions, setShowAllTransactions] = useState(false)
+  const [notification, setNotification] = useState({ message: '', type: '', visible: false })
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [recipient, setRecipient] = useState('')
+  const [sendAmount, setSendAmount] = useState(0)
+  const [, setIsLoading] = useState(false)
+  const [profilePicture, setProfilePicture] = useState<string | null>(null)
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [inflow, setInflow] = useState(0)
+  const [outflow, setOutflow] = useState(0)
 
-  const openPinModal = (rec: SetStateAction<string>, amt: SetStateAction<number>) => {
-    setRecipient(rec);
-    setSendAmount(amt);
-    setPinModalOpen(true);
-  };
-
-
-
-
-  // Fetch user data
   useEffect(() => {
-    const fetchUserData = async () => {
-      const token = localStorage.getItem('token'); // Get token from localStorage
-      if (!token) {
-        setError('User not authenticated');
-        return;
+    fetchUserData()
+    fetchTransactionHistory()
+  }, [])
+
+  useEffect(() => {
+    setDisplayedTransactions(showAllTransactions ? transactions : transactions.slice(0, 7))
+    calculateCashFlow()
+  }, [transactions, showAllTransactions])
+
+
+  const fetchUserData = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setError('User not authenticated')
+      return
+    }
+
+    try {
+      const response = await fetch('https://walletx-server.vercel.app/api/auth/profile', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setName(data.fullName)
+        setUsername(data.username)
+        setBalance(data.balance)
+        setProfilePicture(data.profilePicture)
+      } else {
+        const errorData = await response.json()
+        setError(errorData.message)
       }
+    } catch (error) {
+      setError('Failed to fetch user data')
+    }
+  }
 
-      try {
-        const response = await fetch('https://walletx-server.vercel.app/api/auth/profile', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+  const fetchTransactionHistory = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setError('User not authenticated')
+      return
+    }
 
-        if (response.ok) {
-          const data = await response.json();
-          setName(data.fullName); // Set user name
-          setUsername(data.username);
-          setBalance(data.balance);
-          setTransactions(data.transactions || []); // Initialize transactions if provided
-        } else {
-          const errorData = await response.json();
-          setError(errorData.message);
-        }
-      } catch (error) {
-        setError('Failed to fetch user data');
-      }
-    };
+    try {
+      const response = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
-    fetchUserData(); // Call the function
-  }, []); // Empty dependency array to run only on mount
-
-   // New useEffect for fetching transaction history
-   useEffect(() => {
-    const fetchTransactionHistory = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setTransactionError('User not authenticated');
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const response = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          // Transform the transaction data to match your frontend format
-          const formattedTransactions = data.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number }) => ({
+      if (response.ok) {
+        const data = await response.json()
+        const formattedTransactions = data.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number | string }) => {
+          const parsedAmount = parseFloat(transaction.amount.toString())
+          console.log(`Parsed amount for ${transaction.description}: ${parsedAmount}`)
+          return {
             type: transaction.type,
             name: transaction.description,
             date: new Date(transaction.createdAt).toLocaleString(),
-            amount: transaction.type === 'debit' 
-              ? `-$${transaction.amount.toFixed(2)}` 
-              : `$${transaction.amount.toFixed(2)}`
-          }));
-          setTransactions(formattedTransactions);
-        } else {
-          const errorData = await response.json();
-          setTransactionError(errorData.message);
-        }
-      } catch (error) {
-        setTransactionError('Failed to fetch transaction history');
-      } finally {
-        setIsLoading(false);
+            amount: parsedAmount
+          }
+        })
+        .sort((a: { date: string | number | Date; }, b: { date: string | number | Date; }) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        console.log('Formatted transactions:', formattedTransactions)
+        setTransactions(formattedTransactions)
+      } else {
+        const errorData = await response.json()
+        setError(errorData.message)
       }
-    };
+    } catch (error) {
+      setError('Failed to fetch transaction history')
+    }
+  }
 
-    fetchTransactionHistory();
-  }, []);
+  const calculateCashFlow = () => {
+    let totalInflow = 0
+    let totalOutflow = 0
 
+    transactions.forEach(transaction => {
+      if (transaction.type === 'credit') {
+        totalInflow += transaction.amount
+      } else {
+        totalOutflow += transaction.amount
+      }
+    })
+
+    setInflow(totalInflow)
+    setOutflow(totalOutflow)
+  }
 
   const handleCopy = () => {
     if (username) {
-      navigator.clipboard.writeText(username); // Copy the dynamic username
-      setIsCopied(true); // Show notification
-      setTimeout(() => setIsCopied(false), 3000); // Hide notification after 3 seconds
+      navigator.clipboard.writeText(username)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 3000)
     }
-  };
+  }
 
   const openModal = (modalName: string) => {
-    setActiveModal(modalName);
-  };
+    setActiveModal(modalName)
+  }
 
   const closeModal = () => {
-    setActiveModal(null);
-  };
+    setActiveModal(null)
+  }
 
   const toggleSettings = () => {
-    setIsSettingsOpen(!isSettingsOpen);
-  };
+    setIsSettingsOpen(!isSettingsOpen)
+  }
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setName(null);
-    window.location.href = './';
-  };
+    localStorage.removeItem('token')
+    window.location.href = './'
+  }
 
-  // Function to show notification
   const showNotification = (message: string, type: string) => {
-    setNotification({ message, type, visible: true });
+    setNotification({ message, type, visible: true })
     setTimeout(() => {
-      setNotification((prev) => ({ ...prev, visible: false }));
-    }, 3000);
-  };
+      setNotification((prev) => ({ ...prev, visible: false }))
+    }, 3000)
+  }
 
+  const closeAllModals = () => {
+    setIsSettingsOpen(false)
+    setActiveModal(null)
+    setPinModalOpen(false)
+  }
  
-  // Modified handleAddMoney function to refresh transactions after funding
+
   const handleAddMoney = async (amount: number) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token')
     if (!token) {
-      setError('User not authenticated');
-      return;
+      setError('User not authenticated')
+      return
     }
 
     try {
@@ -161,109 +177,74 @@ export default function Dashboard() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ amount }),
-      });
+      })
 
       if (response.ok) {
-        const data = await response.json();
-        setBalance(data.newBalance);
-        showNotification('Wallet funded successfully!', 'success');
-        
-        // Fetch updated transaction history
-        const historyResponse = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          const formattedTransactions = historyData.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number }) => ({
-            type: transaction.type,
-            name: transaction.description,
-            date: new Date(transaction.createdAt).toLocaleString(),
-            amount: transaction.type === 'debit' 
-              ? `-$${transaction.amount.toFixed(2)}` 
-              : `$${transaction.amount.toFixed(2)}`
-          }));
-          setTransactions(formattedTransactions);
-        }
-        
-        closeModal();
+        const data = await response.json()
+        setBalance(data.newBalance)
+        showNotification('Wallet funded successfully!', 'success')
+        fetchTransactionHistory()
+        closeModal()
       } else {
-        const errorData = await response.json();
-        setError(errorData.message);
+        const errorData = await response.json()
+        setError(errorData.message)
       }
     } catch (error) {
-      setError('Failed to add money');
+      setError('Failed to add money')
     }
-  };
-
-  // Send money
- // Modified handleSendMoney function to refresh transactions after sending
- const handleSendMoney = async (recipient: string, amount: number, userPin: string) => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    setError('User not authenticated');
-    return;
   }
 
-  try {
-    const response = await fetch('https://walletx-server.vercel.app/api/auth/send-money', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ recipientUsername: recipient, amount, pin: userPin }),
-    });
+  const handleSendMoney = async (recipientUsername: string, amount: number, pin: string) => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setError('User not authenticated')
+      return
+    }
 
-    if (response.ok) {
-      const data = await response.json();
-      setBalance(data.newBalance);
-      showNotification('Money sent successfully!', 'success');
-
-      // Fetch updated transaction history
-      const historyResponse = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
-        method: 'GET',
+    try {
+      const response = await fetch('https://walletx-server.vercel.app/api/auth/send-money', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-      });
-      
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json();
-        const formattedTransactions = historyData.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number }) => ({
-          type: transaction.type,
-          name: transaction.description,
-          date: new Date(transaction.createdAt).toLocaleString(),
-          amount: transaction.type === 'debit' 
-            ? `-$${transaction.amount.toFixed(2)}` 
-            : `$${transaction.amount.toFixed(2)}`
-        }));
-        setTransactions(formattedTransactions);
+        body: JSON.stringify({ 
+          recipientUsername, 
+          amount, 
+          pin: parseInt(pin, 10) 
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setBalance(data.newBalance)
+        showNotification(data.message, 'success')
+        fetchTransactionHistory()
+        closeModal()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.message)
       }
-      
-      closeModal();
-    } else {
-      const errorData = await response.json();
-      setError(errorData.message);
+    } catch (error) {
+      setError('Failed to send money')
     }
-  } catch (error) {
-    setError('Failed to send money');
   }
-};
 
   const handlePinSubmit = async (pin: string) => {
-    await handleSendMoney(recipient, sendAmount, pin);
-    setPinModalOpen(false);
-  };
+    await handleSendMoney(recipient, sendAmount, pin)
+    setPinModalOpen(false)
+  }
 
-  const handleSetPin = async (newPin: string) => {
-    const token = localStorage.getItem('token');
+  const handleSetPin = async (newPin: string, confirmPin: string) => {
+    if (newPin !== confirmPin) {
+      setError('PINs do not match')
+      return false
+    }
+
+    const token = localStorage.getItem('token')
     if (!token) {
-      setError('User not authenticated');
-      return false; // Indicate failure
+      setError('User not authenticated')
+      return false
     }
 
     try {
@@ -274,25 +255,211 @@ export default function Dashboard() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ pin: newPin }),
-      });
+      })
 
       if (response.ok) {
-        showNotification('PIN set successfully!', 'success');
-        return true; // Indicate success
+        showNotification('PIN set successfully!', 'success')
+        closeAllModals()
+        return true
       } else {
-        const errorData = await response.json();
-        setError(errorData.message);
-        return false; // Indicate failure
+        const errorData = await response.json()
+        setError(errorData.message)
+        return false
       }
     } catch (error) {
-      setError('Failed to set PIN');
-      return false; // Indicate failure
+      setError('Failed to set PIN')
+      return false
     }
-  };
-
-  function closeSettings() {
-    throw new Error('Function not implemented.')
   }
+
+  const handleEditProfile = async (newFullName: string) => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      setError('User not authenticated')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('fullName', newFullName)
+    
+    const fileInput = document.querySelector<HTMLInputElement>('#profilePicture')
+    const file = fileInput?.files?.[0]
+    if (file) {
+      formData.append('profilePicture', file)
+    }
+
+    try {
+      const response = await fetch('https://walletx-server.vercel.app/api/auth/edit-profile', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setName(data.fullName)
+        if (data.profilePicture) {
+          setProfilePicture(data.profilePicture)
+        }
+        showNotification('Profile updated successfully!', 'success')
+        closeAllModals()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.message)
+      }
+    } catch (error) {
+      setError('Failed to update profile')
+    }
+  }
+
+
+  const formatter = new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  
+  const downloadTransactionHistory = () => {
+    const doc = new jsPDF()
+    
+    // Set font styles
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(20)
+    doc.setTextColor(44, 62, 80)
+    
+    // Add logo/header
+    doc.text("WalletX", 14, 15)
+    
+    // Add user info section
+    doc.setFontSize(12)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(52, 73, 94)
+    
+    // Add user profile picture if available
+    if (profilePicture) {
+      try {
+        doc.addImage(profilePicture, 'JPEG', 14, 25, 20, 20)
+      } catch (error) {
+        console.error('Failed to add profile picture to PDF')
+      }
+    }
+    
+    // Find first credit transaction for opening balance
+    const firstCredit = [...transactions]
+      .reverse()
+      .find(t => t.type === 'credit')
+    
+    // Add user details
+    const userInfoX = profilePicture ? 40 : 14
+    doc.setFont("helvetica", "bold")
+    doc.text(`Account Holder: ${name || 'N/A'}`, userInfoX, 30)
+    doc.setFont("helvetica", "normal")
+    doc.text(`Opening Balance: NGN ${firstCredit ? parseFloat(firstCredit.amount.replace(/[^0-9.-]+/g,"")).toFixed(2) : '0.00'}`, userInfoX, 37)
+    doc.text(`Current Balance: NGN ${balance.toFixed(2)}`, userInfoX, 44)
+    
+    // Add statement details
+    doc.setDrawColor(41, 128, 185)
+    doc.setLineWidth(0.5)
+    doc.line(14, 55, 196, 55)
+    
+    doc.setFontSize(10)
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 60)
+    
+     // Prepare transaction data with proper currency formatting and colors
+     const tableColumn = ["Type", "Description", "Date", "Amount"]
+     const tableRows = transactions.map(transaction => {
+       const amount = parseFloat(transaction.amount.replace(/[^0-9.-]+/g,"")).toFixed(2)
+       return [
+         transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1),
+         transaction.name,
+         transaction.date,
+         transaction.type === 'debit' 
+           ? `NGN ${amount}`
+           : `NGN ${amount}`
+       ]
+     })
+     
+     // Add transaction table with improved styling and color-coding
+     
+     // @ts-ignore
+     doc.autoTable({
+       head: [tableColumn],
+       body: tableRows,
+       startY: 70,
+       styles: { 
+         font: "helvetica",
+         fontSize: 9,
+         cellPadding: 3,
+         lineWidth: 0.1,
+         minCellHeight: 10
+       },
+       columnStyles: {
+         0: { cellWidth: 30, halign: 'left' },
+         1: { cellWidth: 70, halign: 'left' },
+         2: { cellWidth: 50, halign: 'center' },
+         3: { 
+           cellWidth: 40, 
+           halign: 'right',
+           fontStyle: "normal"
+         }
+       },
+       headStyles: {
+         fillColor: [41, 128, 185],
+         textColor: [255, 255, 255],
+         fontStyle: 'bold',
+         halign: 'center',
+         font: "helvetica"
+       },
+       alternateRowStyles: {
+         fillColor: [240, 248, 255]
+       },
+       bodyStyles: {
+         textColor: [52, 73, 94]
+       },
+       // Add color-coding for debit and credit transactions
+       didParseCell: function(data: { section: string; column: { index: number }; row: { raw: string[] }; cell: { styles: { textColor: number[] } } }) {
+         if (data.section === 'body' && data.column.index === 3) {
+           if (data.row.raw[0] === 'Debit') {
+             data.cell.styles.textColor = [255, 0, 0]; // Red for debit
+           } else if (data.row.raw[0] === 'Credit') {
+             data.cell.styles.textColor = [0, 128, 0]; // Green for credit
+           }
+         }
+       },
+       margin: { right: 15 },
+       tableWidth: 'auto'
+     })
+    
+    // Add footer
+    
+// @ts-ignore
+    const pageCount = doc.internal.getNumberOfPages()
+    doc.setFontSize(8)
+    doc.setTextColor(127, 140, 141)
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      const pageSize = doc.internal.pageSize
+      const pageWidth = pageSize.width ? pageSize.width : pageSize.getWidth()
+      const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight()
+      doc.text(
+        `Page ${i} of ${pageCount} | This is an auto-generated statement from WalletX`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      )
+    }
+    
+    // Save the PDF
+    doc.save(`${name || 'user'}_transaction_history.pdf`)
+   // Close all modals
+  closeAllModals()
+   
+   showNotification('Transaction history downloaded!', 'success')
+ }
+
 
   return (
     <div className="bg-gray-100 min-h-screen p-4 md:p-8">
@@ -302,12 +469,11 @@ export default function Dashboard() {
             {notification.message}
           </div>
         )}
-        {/* Dashboard Header */}
         <div className="bg-white text-gray-800 p-4 flex justify-between items-center shadow-md">
           <div className="flex items-center space-x-4">
-            <img
-              src="https://via.placeholder.com/64x64.png?text=AL"
-              alt="Alex's profile"
+             <img
+              src={profilePicture || `https://via.placeholder.com/64x64.png?text=U`}
+              alt="User's profile"
               width={40}
               height={40}
               className="rounded-full"
@@ -319,14 +485,12 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Dashboard Content */}
         <div className="p-4 md:p-6">
-          {/* Balance and Quick Actions */}
           <div className="flex flex-col md:flex-row justify-between items-center mb-8">
             <div className="flex items-center mb-4 md:mb-0">
               <div className="text-center md:text-left mr-4">
                 <p className="text-gray-600">Total Balance</p>
-                <h2 className="text-3xl font-bold">${balance.toFixed(2)}</h2>
+                <h2 className="text-3xl font-bold">{formatter.format(balance)}</h2>
               </div>
               <button
                 onClick={() => openModal('addMoney')}
@@ -349,7 +513,7 @@ export default function Dashboard() {
                 className="bg-green-100 text-green-600 p-2 rounded-full hover:bg-green-200 transition-colors"
                 title="Request Money"
               >
-                <DollarSign className="w-6 h-6" />
+                <Repeat className="w-6 h-6" />
               </button>
               <button
                 onClick={() => openModal('manageCards')}
@@ -361,16 +525,15 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Transaction History */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold mb-4">Transaction History</h3>
             <div className="space-y-4">
-              {transactions.length > 0 ? (
-                transactions.map((transaction, index) => (
+              {displayedTransactions.length > 0 ? (
+                displayedTransactions.map((transaction: any, index: number) => (
                   <div key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                        {transaction.type === 'credit' ? <DollarSign className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+                        {transaction.type === 'credit' ? <CoinsIcon className="w-5 h-5" /> : <Send className="w-5 h-5" />}
                       </div>
                       <div>
                         <p className="font-medium">{transaction.name}</p>
@@ -378,7 +541,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <p className={`font-medium ${transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.amount}
+                      {formatter.format(transaction.amount)}
                     </p>
                   </div>
                 ))
@@ -386,30 +549,31 @@ export default function Dashboard() {
                 <p className="text-gray-500">No transactions available.</p>
               )}
             </div>
+            {!showAllTransactions && transactions.length > 7 && (
+              <button
+                onClick={() => setShowAllTransactions(true)}
+                className="mt-4 w-full bg-gray-100 text-gray-600 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center justify-center"
+              >
+                Show More <ChevronDown className="w-4 h-4 ml-2" />
+              </button>
+            )}
           </div>
 
-
-          {/* Spending Overview */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Spending Overview</h3>
+            <h3 className="text-lg font-semibold mb-4">Cash Flow Overview</h3>
             <div className="bg-gray-50 p-4 rounded-lg flex flex-col md:flex-row items-center justify-between">
-              <PieChart className="w-32 h-32 text-blue-600 mb-4 md:mb-0" />
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <p className="text-sm">Food & Dining (35%)</p>
+              <div className="flex flex-col items-center md:items-start mb-4 md:mb-0">
+                <p className="text-sm text-gray-600 mb-1">Total Inflow</p>
+                <div className="flex items-center">
+                  <ArrowUpRight className="w-5 h-5 text-green-500 mr-2" />
+                  <span className="text-xl font-semibold text-green-600">{formatter.format(inflow)}</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  <p className="text-sm">Transportation (25%)</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                  <p className="text-sm">Entertainment (20%)</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                  <p className="text-sm">Others (20%)</p>
+              </div>
+              <div className="flex flex-col items-center md:items-start">
+                <p className="text-sm text-gray-600 mb-1">Total Outflow</p>
+                <div className="flex items-center">
+                  <ArrowDownRight className="w-5 h-5 text-red-500 mr-2" />
+                  <span className="text-xl font-semibold text-red-600">{formatter.format(outflow)}</span>
                 </div>
               </div>
             </div>
@@ -417,7 +581,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Settings Popup */}
       {isSettingsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-80">
@@ -445,10 +608,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Modals */}
       {activeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4"> {/* Responsive width and margin */}
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">
                 {activeModal === 'addMoney' && 'Fund your Account'}
@@ -458,7 +620,6 @@ export default function Dashboard() {
                 {activeModal === 'setPin' && 'Set PIN'}
                 {activeModal === 'downloadHistory' && 'Download Transaction History'}
                 {activeModal === 'editProfile' && 'Edit Profile'}
-                {activeModal === 'logout' && 'Logout'}
               </h2>
               <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
                 <X className="w-6 h-6" />
@@ -468,24 +629,37 @@ export default function Dashboard() {
               {activeModal === 'setPin' && (
                 <form
                   onSubmit={async (e) => {
-                    e.preventDefault();
-                    const newPin = (e.target as HTMLFormElement).pin.value;
-                    const success = await handleSetPin(newPin);
+                    e.preventDefault()
+                    const success = await handleSetPin(newPin, confirmPin)
                     if (success) {
-                      closeModal(); // Close both modals
-                      closeSettings(); // Close the settings modal if it's open
+                      closeModal()
+                      setIsSettingsOpen(false)
                     }
                   }}
                   className="space-y-4"
                 >
-                  <label htmlFor="pin" className="block text-sm font-medium text-gray-700">Set PIN</label>
-                  <input
-                    type="password"
-                    id="pin"
-                    name="pin"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
-                  />
+                  <div>
+                    <label htmlFor="newPin" className="block text-sm font-medium text-gray-700">New PIN</label>
+                    <input
+                      type="password"
+                      id="newPin"
+                      value={newPin}
+                      onChange={(e) => setNewPin(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="confirmPin" className="block text-sm font-medium text-gray-700">Confirm PIN</label>
+                    <input
+                      type="password"
+                      id="confirmPin"
+                      value={confirmPin}
+                      onChange={(e) => setConfirmPin(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
                   <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md">
                     Set PIN
                   </button>
@@ -500,14 +674,12 @@ export default function Dashboard() {
               {activeModal === 'addMoney' && (
                 <form
                   onSubmit={(e) => {
-                    e.preventDefault();
-                    const amount = parseFloat((e.target as HTMLFormElement).amount.value);
-                    handleAddMoney(amount);
-                    closeModal(); // Close modal after success
+                    e.preventDefault()
+                    const amount = parseFloat((e.target as HTMLFormElement).amount.value)
+                    handleAddMoney(amount)
                   }}
                   className="space-y-4"
                 >
-                  {/* Username Display with Copy Icon */}
                   <div className="flex justify-between items-center bg-gray-100 p-2 rounded-md">
                     <span className="text-sm font-medium text-gray-700">@{username || 'username'}</span>
                     <button
@@ -546,20 +718,13 @@ export default function Dashboard() {
 
               {activeModal === 'sendMoney' && (
                 <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const recipient = (e.target as HTMLFormElement).recipient.value;
-                    const amount = parseFloat((e.target as HTMLFormElement).amount.value);
-                    const userPin = prompt("Please enter your PIN:");
-                    if (userPin) {
-                      await handleSendMoney(recipient, amount, userPin);
-                    }
-                    if (userPin) {
-                      await handleSendMoney(recipient, amount, userPin);
-                      closeModal(); // Close modal after success
-                    } else {
-                      setError('PIN is required to send money.');
-                    }
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const recipient = (e.target as HTMLFormElement).recipient.value
+                    const amount = parseFloat((e.target as HTMLFormElement).amount.value)
+                    setRecipient(recipient)
+                    setSendAmount(amount)
+                    setPinModalOpen(true)
                   }}
                   className="space-y-4"
                 >
@@ -572,7 +737,7 @@ export default function Dashboard() {
                     <input type="number" id="amount" name="amount" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
                   </div>
                   <button
-                    type="button"
+                    type="submit"
                     className="w-full bg-blue-600 text-white px-4 py-2 rounded-md"
                   >
                     Send Money
@@ -585,53 +750,11 @@ export default function Dashboard() {
                 </form>
               )}
 
-
-              {/* Custom Notification */}
-              {isCopied && (
-                <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-md shadow-md">
-                  Username copied successfully!
-                </div>
-              )}
-
-
               {activeModal === 'downloadHistory' && (
                 <div>
-                  <p className="text-sm text-gray-600 mb-4">Your transaction history will be downloaded as a CSV file.</p>
+                  <p className="text-sm text-gray-600 mb-4">Your transaction history will be downloaded as a PDF file.</p>
                   <button
-                    onClick={async () => {
-                      // Add functionality to download the transaction history
-                      const token = localStorage.getItem('token');
-                      if (!token) {
-                        setError('User not authenticated');
-                        return;
-                      }
-
-                      try {
-                        const response = await fetch('https://walletx-server.vercel.app/api/auth/transaction-history', {
-                          method: 'GET',
-                          headers: {
-                            Authorization: `Bearer ${token}`,
-                          },
-                        });
-
-                        if (response.ok) {
-                          const blob = await response.blob();
-                          const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = 'transaction_history.csv'; // Filename for download
-                          document.body.appendChild(a);
-                          a.click();
-                          a.remove();
-                          showNotification('Transaction history downloaded!', 'success');
-                        } else {
-                          const errorData = await response.json();
-                          setError(errorData.message);
-                        }
-                      } catch (error) {
-                        setError('Failed to download transaction history');
-                      }
-                    }}
+                    onClick={downloadTransactionHistory}
                     className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Download
@@ -644,17 +767,12 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {activeModal === 'editProfile' && (
+{activeModal === 'editProfile' && (
                 <form
                   onSubmit={async (e) => {
-                    e.preventDefault();
-                    // Handle profile editing logic here
-                    const newFullName = (e.target as HTMLFormElement).fullName.value;
-                    const newUsername = (e.target as HTMLFormElement).username.value;
-
-                    // Fetch and update profile logic...
-                    // Close modal after success
-                    closeModal();
+                    e.preventDefault()
+                    const newFullName = (e.target as HTMLFormElement).fullName.value
+                    await handleEditProfile(newFullName)
                   }}
                   className="space-y-4"
                 >
@@ -670,14 +788,13 @@ export default function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+                    <label htmlFor="profilePicture" className="block text-sm font-medium text-gray-700">Profile Picture</label>
                     <input
-                      type="text"
-                      id="username"
-                      name="username"
-                      defaultValue={username || ''}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      required
+                      type="file"
+                      id="profilePicture"
+                      name="profilePicture"
+                      accept="image/*"
+                      className="mt-1 block w-full"
                     />
                   </div>
                   <button
@@ -692,6 +809,37 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+
+      {pinModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+            <h2 className="text-xl font-bold mb-4">Enter PIN</h2>
+            <form onSubmit={(e) => {
+              e.preventDefault()
+              const enteredPin = (e.target as HTMLFormElement).pin.value
+              handlePinSubmit(enteredPin)
+            }} className="space-y-4">
+              <input
+                type="password"
+                name="pin"
+                placeholder="Enter your PIN"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                required
+              />
+              <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md">
+                Confirm
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isCopied && (
+        <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-md shadow-md">
+          Username copied successfully!
+        </div>
+      )}
     </div>
-  );
+  )
 }
