@@ -86,7 +86,7 @@ export default function Dashboard() {
         const data = await response.json()
         const formattedTransactions = data.map((transaction: { type: string; description: any; createdAt: string | number | Date; amount: number | string }) => {
           const parsedAmount = parseFloat(transaction.amount.toString())
-          console.log(`Parsed amount for ${transaction.description}: ${parsedAmount}`)
+          // console.log(`Parsed amount for ${transaction.description}: ${parsedAmount}`)
           return {
             type: transaction.type,
             name: transaction.description,
@@ -96,7 +96,7 @@ export default function Dashboard() {
         })
         .sort((a: { date: string | number | Date; }, b: { date: string | number | Date; }) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
-        console.log('Formatted transactions:', formattedTransactions)
+        // console.log('Formatted transactions:', formattedTransactions)
         setTransactions(formattedTransactions)
       } else {
         const errorData = await response.json()
@@ -325,6 +325,14 @@ export default function Dashboard() {
   const downloadTransactionHistory = () => {
     const doc = new jsPDF()
     
+    // Format amount helper function
+    const formatAmount = (amount: number) => {
+      return `NGN ${amount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`
+    }
+    
     // Set font styles
     doc.setFont("helvetica", "bold")
     doc.setFontSize(20)
@@ -343,22 +351,24 @@ export default function Dashboard() {
       try {
         doc.addImage(profilePicture, 'JPEG', 14, 25, 20, 20)
       } catch (error) {
-        console.error('Failed to add profile picture to PDF')
+        console.error('Failed to add profile picture to PDF:', error)
       }
     }
-    
-    // Find first credit transaction for opening balance
-    const firstCredit = [...transactions]
-      .reverse()
-      .find(t => t.type === 'credit')
     
     // Add user details
     const userInfoX = profilePicture ? 40 : 14
     doc.setFont("helvetica", "bold")
     doc.text(`Account Holder: ${name || 'N/A'}`, userInfoX, 30)
     doc.setFont("helvetica", "normal")
-    doc.text(`Opening Balance: NGN ${firstCredit ? parseFloat(firstCredit.amount.replace(/[^0-9.-]+/g,"")).toFixed(2) : '0.00'}`, userInfoX, 37)
-    doc.text(`Current Balance: NGN ${balance.toFixed(2)}`, userInfoX, 44)
+  
+    // Find the first credit transaction for opening balance
+    const firstCredit = [...transactions]
+      .reverse()
+      .find(t => t.type === 'credit')
+  
+    const openingBalance = firstCredit ? firstCredit.amount : 0
+    doc.text(`Opening Balance: ${formatAmount(openingBalance)}`, userInfoX, 37)
+    doc.text(`Current Balance: ${formatAmount(balance)}`, userInfoX, 44)
     
     // Add statement details
     doc.setDrawColor(41, 128, 185)
@@ -368,74 +378,70 @@ export default function Dashboard() {
     doc.setFontSize(10)
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 60)
     
-     // Prepare transaction data with proper currency formatting and colors
-     const tableColumn = ["Type", "Description", "Date", "Amount"]
-     const tableRows = transactions.map(transaction => {
-       const amount = parseFloat(transaction.amount.replace(/[^0-9.-]+/g,"")).toFixed(2)
-       return [
-         transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1),
-         transaction.name,
-         transaction.date,
-         transaction.type === 'debit' 
-           ? `NGN ${amount}`
-           : `NGN ${amount}`
-       ]
-     })
-     
-     // Add transaction table with improved styling and color-coding
-     
-     // @ts-ignore
-     doc.autoTable({
-       head: [tableColumn],
-       body: tableRows,
-       startY: 70,
-       styles: { 
-         font: "helvetica",
-         fontSize: 9,
-         cellPadding: 3,
-         lineWidth: 0.1,
-         minCellHeight: 10
-       },
-       columnStyles: {
-         0: { cellWidth: 30, halign: 'left' },
-         1: { cellWidth: 70, halign: 'left' },
-         2: { cellWidth: 50, halign: 'center' },
-         3: { 
-           cellWidth: 40, 
-           halign: 'right',
-           fontStyle: "normal"
-         }
-       },
-       headStyles: {
-         fillColor: [41, 128, 185],
-         textColor: [255, 255, 255],
-         fontStyle: 'bold',
-         halign: 'center',
-         font: "helvetica"
-       },
-       alternateRowStyles: {
-         fillColor: [240, 248, 255]
-       },
-       bodyStyles: {
-         textColor: [52, 73, 94]
-       },
-       // Add color-coding for debit and credit transactions
-       didParseCell: function(data: { section: string; column: { index: number }; row: { raw: string[] }; cell: { styles: { textColor: number[] } } }) {
-         if (data.section === 'body' && data.column.index === 3) {
-           if (data.row.raw[0] === 'Debit') {
-             data.cell.styles.textColor = [255, 0, 0]; // Red for debit
-           } else if (data.row.raw[0] === 'Credit') {
-             data.cell.styles.textColor = [0, 128, 0]; // Green for credit
-           }
-         }
-       },
-       margin: { right: 15 },
-       tableWidth: 'auto'
-     })
+    // Prepare transaction data
+    const tableColumn = ["Type", "Description", "Date", "Amount"]
+    const tableRows = transactions.map(transaction => [
+      transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1),
+      transaction.name,
+      transaction.date,
+      formatAmount(transaction.amount)
+    ])
     
-    // Add footer
+    // Add transaction table
+    // @ts-ignore
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 70,
+      styles: { 
+        font: "helvetica",
+        fontSize: 9,
+        cellPadding: 3,
+        lineWidth: 0.1,
+        minCellHeight: 10,
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { cellWidth: 25, halign: 'left' },
+        1: { cellWidth: 60, halign: 'left' },
+        2: { cellWidth: 45, halign: 'center' },
+        3: { 
+          cellWidth: 45, 
+          halign: 'right',
+          fontStyle: "normal",
+          fontSize: 9
+        }
+      },
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+        font: "helvetica"
+      },
+      alternateRowStyles: {
+        fillColor: [240, 248, 255]
+      },
+      bodyStyles: {
+        textColor: [52, 73, 94]
+      },
+      // Color coding for transactions
+      didParseCell: function(data: { section: string; column: { index: number }; row: { raw: any[] }; cell: { styles: { textColor: number[] } } }) {
+        if (data.section === 'body' && data.column.index === 3) {
+          const transactionType = data.row.raw[0]
+          if (transactionType === 'Debit') {
+            data.cell.styles.textColor = [192, 0, 0] // Darker red for better readability
+          } else if (transactionType === 'Credit') {
+            data.cell.styles.textColor = [0, 128, 0] // Darker green for better readability
+          }
+        }
+      },
+      margin: { left: 14, right: 14 },
+      tableWidth: 'auto'
+    })
     
-// @ts-ignore
+    // Add footer with page numbers
+    // @ts-ignore
     const pageCount = doc.internal.getNumberOfPages()
     doc.setFontSize(8)
     doc.setTextColor(127, 140, 141)
@@ -454,11 +460,9 @@ export default function Dashboard() {
     
     // Save the PDF
     doc.save(`${name || 'user'}_transaction_history.pdf`)
-   // Close all modals
-  closeAllModals()
-   
-   showNotification('Transaction history downloaded!', 'success')
- }
+    closeAllModals()
+    showNotification('Transaction history downloaded!', 'success')
+  }
 
 
   return (
