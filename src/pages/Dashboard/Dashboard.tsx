@@ -94,8 +94,8 @@ export default function Dashboard() {
             amount: parsedAmount
           }
         })
-        .sort((a: { date: string | number | Date; }, b: { date: string | number | Date; }) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
+          .sort((a: { date: string | number | Date; }, b: { date: string | number | Date; }) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
         // console.log('Formatted transactions:', formattedTransactions)
         setTransactions(formattedTransactions)
       } else {
@@ -160,7 +160,7 @@ export default function Dashboard() {
     setActiveModal(null)
     setPinModalOpen(false)
   }
- 
+
 
   const handleAddMoney = async (amount: number) => {
     const token = localStorage.getItem('token')
@@ -208,10 +208,10 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
-          recipientUsername, 
-          amount, 
-          pin: parseInt(pin, 10) 
+        body: JSON.stringify({
+          recipientUsername,
+          amount,
+          pin: parseInt(pin, 10)
         }),
       })
 
@@ -281,7 +281,7 @@ export default function Dashboard() {
 
     const formData = new FormData()
     formData.append('fullName', newFullName)
-    
+
     const fileInput = document.querySelector<HTMLInputElement>('#profilePicture')
     const file = fileInput?.files?.[0]
     if (file) {
@@ -321,10 +321,10 @@ export default function Dashboard() {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  
+
   const downloadTransactionHistory = () => {
     const doc = new jsPDF()
-    
+
     // Format amount helper function
     const formatAmount = (amount: number) => {
       return `NGN ${amount.toLocaleString('en-US', {
@@ -332,20 +332,20 @@ export default function Dashboard() {
         maximumFractionDigits: 2
       })}`
     }
-    
+
     // Set font styles
     doc.setFont("helvetica", "bold")
     doc.setFontSize(20)
     doc.setTextColor(44, 62, 80)
-    
+
     // Add logo/header
     doc.text("WalletX", 14, 15)
-    
+
     // Add user info section
     doc.setFontSize(12)
     doc.setFont("helvetica", "normal")
     doc.setTextColor(52, 73, 94)
-    
+
     // Add user profile picture if available
     if (profilePicture) {
       try {
@@ -354,30 +354,30 @@ export default function Dashboard() {
         console.error('Failed to add profile picture to PDF:', error)
       }
     }
-    
+
     // Add user details
     const userInfoX = profilePicture ? 40 : 14
     doc.setFont("helvetica", "bold")
     doc.text(`Account Holder: ${name || 'N/A'}`, userInfoX, 30)
     doc.setFont("helvetica", "normal")
-  
+
     // Find the first credit transaction for opening balance
     const firstCredit = [...transactions]
       .reverse()
       .find(t => t.type === 'credit')
-  
+
     const openingBalance = firstCredit ? firstCredit.amount : 0
     doc.text(`Opening Balance: ${formatAmount(openingBalance)}`, userInfoX, 37)
     doc.text(`Current Balance: ${formatAmount(balance)}`, userInfoX, 44)
-    
+
     // Add statement details
     doc.setDrawColor(41, 128, 185)
     doc.setLineWidth(0.5)
     doc.line(14, 55, 196, 55)
-    
+
     doc.setFontSize(10)
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 60)
-    
+
     // Prepare transaction data
     const tableColumn = ["Type", "Description", "Date", "Amount"]
     const tableRows = transactions.map(transaction => [
@@ -386,14 +386,14 @@ export default function Dashboard() {
       transaction.date,
       formatAmount(transaction.amount)
     ])
-    
+
     // Add transaction table
     // @ts-ignore
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
       startY: 70,
-      styles: { 
+      styles: {
         font: "helvetica",
         fontSize: 9,
         cellPadding: 3,
@@ -405,8 +405,8 @@ export default function Dashboard() {
         0: { cellWidth: 25, halign: 'left' },
         1: { cellWidth: 60, halign: 'left' },
         2: { cellWidth: 45, halign: 'center' },
-        3: { 
-          cellWidth: 45, 
+        3: {
+          cellWidth: 45,
           halign: 'right',
           fontStyle: "normal",
           fontSize: 9
@@ -426,7 +426,7 @@ export default function Dashboard() {
         textColor: [52, 73, 94]
       },
       // Color coding for transactions
-      didParseCell: function(data: { section: string; column: { index: number }; row: { raw: any[] }; cell: { styles: { textColor: number[] } } }) {
+      didParseCell: function (data: { section: string; column: { index: number }; row: { raw: any[] }; cell: { styles: { textColor: number[] } } }) {
         if (data.section === 'body' && data.column.index === 3) {
           const transactionType = data.row.raw[0]
           if (transactionType === 'Debit') {
@@ -439,7 +439,7 @@ export default function Dashboard() {
       margin: { left: 14, right: 14 },
       tableWidth: 'auto'
     })
-    
+
     // Add footer with page numbers
     // @ts-ignore
     const pageCount = doc.internal.getNumberOfPages()
@@ -457,7 +457,7 @@ export default function Dashboard() {
         { align: 'center' }
       )
     }
-    
+
     // Save the PDF
     doc.save(`${name || 'user'}_transaction_history.pdf`)
     closeAllModals()
@@ -475,7 +475,7 @@ export default function Dashboard() {
         )}
         <div className="bg-white text-gray-800 p-4 flex justify-between items-center shadow-md">
           <div className="flex items-center space-x-4">
-             <img
+            <img
               src={profilePicture || `https://via.placeholder.com/64x64.png?text=U`}
               alt="User's profile"
               width={40}
@@ -771,7 +771,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-{activeModal === 'editProfile' && (
+              {activeModal === 'editProfile' && (
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault()
