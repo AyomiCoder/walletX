@@ -1,124 +1,118 @@
-import { useEffect, useState } from 'react'
-import { Send, Repeat, Shield, Users, Twitter, Linkedin, X, ChevronDown, ChevronUp, Star, CreditCard, PieChart, Settings, PlusCircle, Github, Globe, Coins } from 'lucide-react'
-import { Link } from 'react-scroll';
-import { useNavigate } from 'react-router-dom';
-import Notification from '../../components/Notification/Notification';
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Send, Repeat, Shield, Users, Twitter, Linkedin, X, ChevronDown, ChevronUp, Star, Github, Globe, Sun, Moon, Loader, Eye, EyeOff } from 'lucide-react'
+import { Link } from 'react-scroll'
+import { useNavigate } from 'react-router-dom'
+import Notification from '../../components/Notification/Notification'
 
 export default function LandingPage() {
-    const navigate = useNavigate();
+    const navigate = useNavigate()
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
     const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
+    const [registerData, setRegisterData] = useState({ fullName: '', username: '', email: '', password: '', confirmPassword: '' })
+    const [loginData, setLoginData] = useState({ email: '', password: '' })
+    const [error, setError] = useState('')
+    const [successMessage, setSuccessMessage] = useState('')
+    const [isLoading, setIsLoading] = useState(false)
+    const [isDarkMode, setIsDarkMode] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const [showLoginPassword, setShowLoginPassword] = useState(false)
 
-    // Add this at the top, right after useState and other imports
-    const [registerData, setRegisterData] = useState({ fullName: '', username: '', email: '', password: '' });
-    const [loginData, setLoginData] = useState({ email: '', password: '' });
-    const [error, setError] = useState('');
-    const [, setToken] = useState(null);
-    const [successMessage, setSuccessMessage] = useState('');
-    const [, setName] = useState<string | null>(null);
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme')
+        setIsDarkMode(savedTheme === 'dark')
+    }, [])
 
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', isDarkMode)
+        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light')
+    }, [isDarkMode])
 
- // Handle register form submission
- const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError('');
-    setSuccessMessage('');
-
-    try {
-        // Send registration request
-        const response = await fetch('https://walletx-server.vercel.app/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(registerData),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            setSuccessMessage('Account created successfully!');
-            localStorage.setItem('token', data.token); // Save the token from the registration response
-
-            // Fetch user profile after registration
-            const userResponse = await fetch('https://walletx-server.vercel.app/api/auth/profile', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${data.token}`, // Use the token from registration
-                },
-            });
-
-            const userData = await userResponse.json();
-
-            if (userResponse.ok) {
-                setName(userData.fullName); // Set the user name after fetching the profile
-                navigate('/dashboard'); // Redirect to dashboard after success
-            } else {
-                setError('Failed to load user profile.');
-            }
-        } else {
-            setError(data.message || 'Something went wrong');
-        }
-    } catch (error) {
-        setError('Failed to register');
+    const toggleTheme = () => {
+        setIsDarkMode(prevMode => !prevMode)
     }
-};
 
+    const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setError('')
+        setSuccessMessage('')
+        setIsLoading(true)
 
-// Handle login form submission
-const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError('');
-    setSuccessMessage('');
-
-    try {
-        const response = await fetch('https://walletx-server.vercel.app/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(loginData),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            setToken(data.token);
-            localStorage.setItem('token', data.token); // Save the token in localStorage
-            setSuccessMessage('Login successful!');
-
-            // Fetch user profile after login
-            const userResponse = await fetch('https://walletx-server.vercel.app/api/auth/profile', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${data.token}`,
-                },
-            });
-
-            const userData = await userResponse.json();
-
-            if (userResponse.ok) {
-                setName(userData.fullName); // Set the user name after fetching
-                navigate('/dashboard'); // Redirect to dashboard after success
-            } else {
-                setError('Failed to load user profile.');
-            }
-        } else {
-            setError(data.message || 'Invalid login credentials');
+        if (registerData.password !== registerData.confirmPassword) {
+            setError('Passwords do not match')
+            setIsLoading(false)
+            return
         }
-    } catch (error) {
-        setError('Failed to login');
+
+        if (registerData.password.length < 8) {
+            setError('Password must be at least 8 characters long')
+            setIsLoading(false)
+            return
+        }
+
+        try {
+            const response = await fetch('https://walletx-server.vercel.app/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(registerData),
+            })
+
+            const data = await response.json()
+
+            if (response.ok) {
+                setSuccessMessage('Account created successfully!')
+                localStorage.setItem('token', data.token)
+                navigate('/dashboard')
+            } else {
+                setError(data.message || 'Something went wrong')
+            }
+        } catch (error) {
+            setError('Failed to register')
+        }
+
+        setIsLoading(false)
     }
-};
 
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setError('')
+        setSuccessMessage('')
+        setIsLoading(true)
 
-    // Clear success message after 3 seconds
+        try {
+            const response = await fetch('https://walletx-server.vercel.app/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(loginData),
+            })
+
+            const data = await response.json()
+
+            if (response.ok) {
+                localStorage.setItem('token', data.token)
+                setSuccessMessage('Login successful!')
+                navigate('/dashboard')
+            } else {
+                setError(data.message || 'Invalid login credentials')
+            }
+        } catch (error) {
+            setError('Failed to login')
+        }
+
+        setIsLoading(false)
+    }
+
     useEffect(() => {
         if (successMessage) {
             const timer = setTimeout(() => {
-                setSuccessMessage('');
-            }, 3000); // Clear after 3 seconds
-            return () => clearTimeout(timer);
+                setSuccessMessage('')
+            }, 3000)
+            return () => clearTimeout(timer)
         }
-    }, [successMessage]);
-
+    }, [successMessage])
 
     const openRegisterModal = () => {
         setIsRegisterModalOpen(true)
@@ -140,7 +134,7 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     }
 
     return (
-        <div className="bg-white min-h-screen font-sans flex flex-col">
+        <div className={`min-h-screen font-sans flex flex-col ${isDarkMode ? 'dark bg-gray-900 text-gray-100' : 'bg-white text-gray-900'}`}>
             <div className="flex-grow">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Navigation */}
@@ -150,22 +144,27 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                             <span className="font-bold text-xl">WalletX</span>
                         </div>
                         <div className="hidden md:flex space-x-8">
-                            <Link to="features" smooth={true} duration={1500} className="text-gray-600 hover:text-gray-900 cursor-pointer">
+                            <Link to="features" smooth={true} duration={1500} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer">
                                 Features
                             </Link>
-                            <Link to="how" smooth={true} duration={1500} className="text-gray-600 hover:text-gray-900 cursor-pointer">
+                            <Link to="how" smooth={true} duration={1500} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer">
                                 How It Works
                             </Link>
-                            <Link to="cms" smooth={true} duration={1500} className="text-gray-600 hover:text-gray-900 cursor-pointer">
+                            <Link to="testimonials" smooth={true} duration={1500} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer">
                                 Testimonials
                             </Link>
-                            <Link to="faq" smooth={true} duration={1500} className="text-gray-600 hover:text-gray-900 cursor-pointer">
+                            <Link to="faq" smooth={true} duration={1500} className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer">
                                 FAQ
                             </Link>
                         </div>
-                        <button onClick={openLoginModal} className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium">
-                            Sign In
-                        </button>
+                        <div className="flex items-center space-x-4">
+                            <button onClick={toggleTheme} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
+                                {isDarkMode ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5" />}
+                            </button>
+                            <button onClick={openLoginModal} className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium">
+                                Sign In
+                            </button>
+                        </div>
                     </nav>
 
                     {/* Main Content */}
@@ -183,7 +182,7 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                             <h1 className="text-6xl font-bold leading-tight mb-4">
                                 Send and receive money<br />with just a username
                             </h1>
-                            <p className="text-xl text-gray-600 mb-8">
+                            <p className="text-xl text-gray-700 dark:text-gray-300 mb-8">
                                 WalletX makes financial transactions as easy as sending a message.<br />No account numbers, just usernames.
                             </p>
                             <button onClick={openRegisterModal} className="bg-blue-600 text-white px-6 py-3 rounded-full text-lg font-medium">
@@ -195,170 +194,65 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                         <div id="features">
                             <div className="mt-32 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {/* Instant Transfers Box */}
-                                <div className="bg-blue-100 rounded-3xl p-6 flex flex-col items-center text-center">
-                                    <Send className="w-12 h-12 text-blue-600 mb-4" />
+                                <div className="bg-blue-100 dark:bg-blue-900 rounded-3xl p-6 flex flex-col items-center text-center">
+                                    <Send className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4" />
                                     <h2 className="text-xl font-bold mb-2">Instant Transfers</h2>
-                                    <p className="text-gray-600">Send money in seconds, anytime, anywhere</p>
+                                    <p className="text-gray-700 dark:text-gray-300">Send money in seconds, anytime, anywhere</p>
                                 </div>
 
                                 {/* Username Payments Box */}
-                                <div className="bg-green-100 rounded-3xl p-6 flex flex-col items-center text-center">
-                                    <Users className="w-12 h-12 text-green-600 mb-4" />
+                                <div className="bg-green-100 dark:bg-green-900 rounded-3xl p-6 flex flex-col items-center text-center">
+                                    <Users className="w-12 h-12 text-green-600 dark:text-green-400 mb-4" />
                                     <h2 className="text-xl font-bold mb-2">Username Payments</h2>
-                                    <p className="text-gray-600">No need for complex account numbers, just use usernames</p>
+                                    <p className="text-gray-700 dark:text-gray-300">No need for complex account numbers, just use usernames</p>
                                 </div>
 
                                 {/* Zero Fees Box */}
-                                <div className="bg-yellow-100 rounded-3xl p-6 flex flex-col items-center text-center">
-                                    <Repeat className="w-12 h-12 text-yellow-600 mb-4" />
+                                <div className="bg-yellow-100 dark:bg-yellow-900 rounded-3xl p-6 flex flex-col items-center text-center">
+                                    <Repeat className="w-12 h-12 text-yellow-600 dark:text-yellow-400 mb-4" />
                                     <h2 className="text-xl font-bold mb-2">Zero Fees</h2>
-                                    <p className="text-gray-600">Enjoy fee-free transactions within our network</p>
+                                    <p className="text-gray-700 dark:text-gray-300">Enjoy fee-free transactions within our network</p>
                                 </div>
 
                                 {/* Bank-Level Security Box */}
-                                <div className="bg-purple-100 rounded-3xl p-6 flex flex-col items-center text-center">
-                                    <Shield className="w-12 h-12 text-purple-600 mb-4" />
+                                <div className="bg-purple-100 dark:bg-purple-900 rounded-3xl p-6 flex flex-col items-center text-center">
+                                    <Shield className="w-12 h-12 text-purple-600 dark:text-purple-400 mb-4" />
                                     <h2 className="text-xl font-bold mb-2">Bank-Level Security</h2>
-                                    <p className="text-gray-600">Your money and data are protected by advanced encryption</p>
+                                    <p className="text-gray-700 dark:text-gray-300">Your money and data are protected by advanced encryption</p>
                                 </div>
                             </div>
                         </div>
-
-                        {/* User Dashboard Preview */}
-                        <section className="mt-32">
-                            <h2 className="text-4xl font-bold text-center mb-12">Your Financial Hub at a Glance</h2>
-                            <div className="bg-gray-100 rounded-lg p-4 md:p-8 shadow-lg">
-                                <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                                    {/* Dashboard Header */}
-                                    <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
-                                        <h3 className="text-xl font-bold">Welcome back, Alex!</h3>
-                                        <div className="flex items-center space-x-4">
-                                            <Settings className="w-6 h-6" />
-                                        </div>
-                                    </div>
-
-                                    {/* Dashboard Content */}
-                                    <div className="p-4 md:p-6">
-                                        {/* Balance and Quick Actions */}
-                                        <div className="flex flex-col items-center md:items-start md:flex-row justify-between mb-8">
-                                            <div className="flex items-center mb-4 md:mb-0">
-                                                <div className="text-center md:text-left">
-                                                    <p className="text-gray-600">Total Balance</p>
-                                                    <h4 className="text-2xl md:text-3xl font-bold">NGN2,450.35</h4>
-                                                </div>
-                                                <button className="ml-4 bg-blue-100 text-blue-600 p-2 rounded-full flex items-center" title="Add Money">
-                                                    <PlusCircle className="w-6 h-6" />
-                                                    <span className="sr-only">Add Money</span>
-                                                </button>
-                                            </div>
-                                            <div className="flex space-x-4">
-                                                <button className="bg-blue-100 text-blue-600 p-2 rounded-full" title="Send Money">
-                                                    <Send className="w-6 h-6" />
-                                                    <span className="sr-only">Send Money</span>
-                                                </button>
-                                                <button className="bg-green-100 text-green-600 p-2 rounded-full" title="Request Money">
-                                                    <Repeat className="w-6 h-6" />
-                                                    <span className="sr-only">Request Money</span>
-                                                </button>
-                                                <button className="bg-purple-100 text-purple-600 p-2 rounded-full" title="Manage Cards">
-                                                    <CreditCard className="w-6 h-6" />
-                                                    <span className="sr-only">Manage Cards</span>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Recent Transactions */}
-                                        <div className="mb-8">
-                                            <h5 className="text-lg font-semibold mb-4">Recent Transactions</h5>
-                                            <div className="space-y-4">
-                                                {[
-                                                    { name: "Sarah J.", amount: "-NGN1,500.00", date: "Today", type: "sent" },
-                                                    { name: "Netflix", amount: "-NGN7,000.99", date: "Yesterday", type: "subscription" },
-                                                    { name: "Payroll", amount: "+NGN2,500.00", date: "Mar 1", type: "received" },
-                                                ].map((transaction, index) => (
-                                                    <div key={index} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                                                        <div className="flex items-center space-x-3">
-                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${transaction.type === 'sent' ? 'bg-red-100 text-red-600' :
-                                                                    transaction.type === 'received' ? 'bg-green-100 text-green-600' :
-                                                                        'bg-blue-100 text-blue-600'
-                                                                }`}>
-                                                                {transaction.type === 'sent' && <Send className="w-5 h-5" />}
-                                                                {transaction.type === 'received' && <Coins className="w-5 h-5" />}
-                                                                {transaction.type === 'subscription' && <CreditCard className="w-5 h-5" />}
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-medium">{transaction.name}</p>
-                                                                <p className="text-sm text-gray-500">{transaction.date}</p>
-                                                            </div>
-                                                        </div>
-                                                        <p className={`font-medium ${transaction.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                                                            {transaction.amount}
-                                                        </p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Spending Overview */}
-                                        <div>
-                                            <h5 className="text-lg font-semibold mb-4">Spending Overview</h5>
-                                            <div className="bg-gray-50 p-4 rounded-lg flex flex-col md:flex-row items-center justify-between">
-                                                <PieChart className="w-16 h-16 text-blue-600 mb-4 md:mb-0" />
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center space-x-2">
-                                                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                                        <p className="text-sm">Food & Dining (35%)</p>
-                                                    </div>
-                                                    <div className="flex items-center space-x-2">
-                                                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                                        <p className="text-sm">Transportation (25%)</p>
-                                                    </div>
-                                                    <div className="flex items-center space-x-2">
-                                                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                                        <p className="text-sm">Entertainment (20%)</p>
-                                                    </div>
-                                                    <div className="flex items-center space-x-2">
-                                                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                                                        <p className="text-sm">Others (20%)</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
 
                         {/* How It Works Section */}
                         <section className="mt-32" id="how">
                             <h2 className="text-4xl font-bold text-center mb-12">How WalletX Works</h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 <div className="flex flex-col items-center text-center">
-                                    <div className="bg-blue-100 rounded-full p-6 mb-4">
-                                        <Users className="w-12 h-12 text-blue-600" />
+                                    <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-6 mb-4">
+                                        <Users className="w-12 h-12 text-blue-600 dark:text-blue-400" />
                                     </div>
                                     <h3 className="text-xl font-bold mb-2">1. Create Your Account</h3>
-                                    <p className="text-gray-600">Sign up with your email and choose a unique username</p>
+                                    <p className="text-gray-700 dark:text-gray-300">Sign up with your email and choose a unique username</p>
                                 </div>
                                 <div className="flex flex-col items-center text-center">
-                                    <div className="bg-green-100 rounded-full p-6 mb-4">
-                                        <Send className="w-12 h-12 text-green-600" />
+                                    <div className="bg-green-100 dark:bg-green-900 rounded-full p-6 mb-4">
+                                        <Send className="w-12 h-12 text-green-600 dark:text-green-400" />
                                     </div>
                                     <h3 className="text-xl font-bold mb-2">2. Send or Request Money</h3>
-                                    <p className="text-gray-600">Enter a username and amount to transfer funds instantly</p>
+                                    <p className="text-gray-700 dark:text-gray-300">Enter a username and amount to transfer funds instantly</p>
                                 </div>
                                 <div className="flex flex-col items-center text-center">
-                                    <div className="bg-purple-100 rounded-full p-6 mb-4">
-                                        <Repeat className="w-12 h-12 text-purple-600" />
+                                    <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-6 mb-4">
+                                        <Repeat className="w-12 h-12 text-purple-600 dark:text-purple-400" />
                                     </div>
                                     <h3 className="text-xl font-bold mb-2">3. Manage Your Finances</h3>
-                                    <p className="text-gray-600">Track your transactions and balance in real-time</p>
+                                    <p className="text-gray-700 dark:text-gray-300">Track your transactions and balance in real-time</p>
                                 </div>
                             </div>
                         </section>
 
                         {/* Customer Testimonials Section */}
-                        <section className="mt-32" id="cms">
+                        <section className="mt-32" id="testimonials">
                             <h2 className="text-4xl font-bold text-center mb-12">What Our Users Say</h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 {[
@@ -376,21 +270,20 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                                     },
                                     {
                                         name: "Emily Rodriguez",
-
                                         role: "Student",
                                         comment: "Splitting bills with roommates is a breeze now. No more awkward conversations about who owes what!",
                                         avatar: "https://via.placeholder.com/64x64.png?text=ER"
                                     }
                                 ].map((testimonial, index) => (
-                                    <div key={index} className="bg-gray-50 rounded-lg p-6 shadow-sm">
+                                    <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 shadow-sm">
                                         <div className="flex items-center mb-4">
                                             <img src={testimonial.avatar} alt={testimonial.name} className="w-16 h-16 rounded-full mr-4" />
                                             <div>
                                                 <h3 className="font-bold">{testimonial.name}</h3>
-                                                <p className="text-gray-600 text-sm">{testimonial.role}</p>
+                                                <p className="text-gray-600 dark:text-gray-400 text-sm">{testimonial.role}</p>
                                             </div>
                                         </div>
-                                        <p className="text-gray-600 mb-4">{testimonial.comment}</p>
+                                        <p className="text-gray-700 dark:text-gray-300 mb-4">{testimonial.comment}</p>
                                         <div className="flex text-yellow-400">
                                             {[...Array(5)].map((_, i) => (
                                                 <Star key={i} className="w-5 h-5 fill-current" />
@@ -439,20 +332,20 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                                         answer: "If you forget your password, you can easily reset it through our secure password recovery process. For forgotten usernames, you can recover your account using the email address associated with your WalletX account. Our customer support team is also available to assist you with account recovery if needed."
                                     }
                                 ].map((faq, index) => (
-                                    <div key={index} className="border-b border-gray-200 pb-4">
+                                    <div key={index} className="border-b border-gray-200 dark:border-gray-700 pb-4">
                                         <button
                                             className="flex justify-between items-center w-full text-left"
                                             onClick={() => toggleFaq(index)}
                                         >
                                             <span className="text-lg font-medium">{faq.question}</span>
                                             {openFaqIndex === index ? (
-                                                <ChevronUp className="w-5 h-5 text-gray-500" />
+                                                <ChevronUp className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                             ) : (
-                                                <ChevronDown className="w-5 h-5 text-gray-500" />
+                                                <ChevronDown className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                             )}
                                         </button>
                                         {openFaqIndex === index && (
-                                            <p className="mt-2 text-gray-600">{faq.answer}</p>
+                                            <p className="mt-2 text-gray-700 dark:text-gray-300">{faq.answer}</p>
                                         )}
                                     </div>
                                 ))}
@@ -463,48 +356,27 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
             </div>
 
             {/* Footer */}
-            <footer className="bg-gray-100 mt-24">
+            <footer className="bg-gray-100 dark:bg-gray-800 mt-24">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        {/* <div>
+                        <div>
                             <h3 className="text-lg font-semibold mb-4">About WalletX</h3>
-                            <ul className="space-y-2">
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Our Story</a></li>
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Careers</a></li>
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Press</a></li>
-                            </ul>
+                            <p className="text-gray-600 dark:text-gray-400">Revolutionizing digital payments with simplicity and security.</p>
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Products</h3>
-                            <ul className="space-y-2">
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Personal</a></li>
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Business</a></li>
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">API</a></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4">Resources</h3>
-                            <ul className="space-y-2">
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Help Center</a></li>
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Blog</a></li>
-                                <li><a href="#" className="text-gray-600 hover:text-blue-600">Developers</a></li>
-                            </ul>
-                        </div> */}
-                        <div>
-                            {/* <h3 className="text-lg font-semibold mb-4">Connect</h3> */}
+                            <h3 className="text-lg font-semibold mb-4">Connect With Us</h3>
                             <div className="flex space-x-4">
-                                <a href="https://github.com/AyomiCoder" className="text-gray-600 hover:text-blue-600" target='blank'><Github /></a>
-                                <a href="https://x.com/ayomicoder" className="text-gray-600 hover:text-blue-600" target='blank'><Twitter /></a>
-                                <a href="https://ayaluko.vercel.app" className="text-gray-600 hover:text-blue-600" target='blank'><Globe /></a>
-                                <a href="https://www.linkedin.com/in/ayomidealuko" className="text-gray-600 hover:text-blue-600" target='blank'><Linkedin /></a>
+                                <a href="https://github.com/AyomiCoder" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" target='blank'><Github /></a>
+                                <a href="https://x.com/ayomicoder" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" target='blank'><Twitter /></a>
+                                <a href="https://ayaluko.vercel.app" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" target='blank'><Globe /></a>
+                                <a href="https://www.linkedin.com/in/ayomidealuko" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" target='blank'><Linkedin /></a>
                             </div>
                         </div>
                     </div>
-                    <div className="mt-8 pt-8 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center">
-                        <p className="text-gray-600">&copy; 2024 WalletX.</p>
-                        <div className="mt-4 md:mt-0 flex space-x-4">
-                            <a href="mailto:alukoayomide623@gmail.com" className="text-gray-600 hover:text-blue-600">Contact Dev</a>
-                            {/* <a href="#" className="text-gray-600 hover:text-blue-600">Terms of Service</a> */}
+                    <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center">
+                        <p className="text-gray-600 dark:text-gray-400">&copy; 2024 WalletX. V2.</p>
+                        <div className="mt-4 md:mt-0">
+                            <a href="mailto:alukoayomide623@gmail.com" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">Contact Dev</a>
                         </div>
                     </div>
                 </div>
@@ -513,76 +385,100 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
             {/* Register Modal */}
             {isRegisterModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg p-8 max-w-md w-full">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold">Create Your WalletX</h2>
-                            <button onClick={closeModals} className="text-gray-500 hover:text-gray-700">
+                            <button onClick={closeModals} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
-                        {error && <p className="text-red-500 text-sm">{error}</p>} {/* Display error message */}
+                        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
                         <form className="space-y-4" onSubmit={handleRegister}>
                             <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
+                                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name</label>
                                 <input
-                                type="text"
-                                id="name"
-                                name="name"
-                                value={registerData.fullName}
-                                onChange={(e) => setRegisterData({ ...registerData, fullName: e.target.value })}
-                                required
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
+                                    type="text"
+                                    id="fullName"
+                                    name="fullName"
+                                    required
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white"
+                                    value={registerData.fullName}
+                                    onChange={(e) => setRegisterData({...registerData, fullName: e.target.value})}
+                                />
                             </div>
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+                                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
                                 <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                value={registerData.email}
-                                onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                                required
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    required
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white"
+                                    value={registerData.username}
+                                    onChange={(e) => setRegisterData({...registerData, username: e.target.value})}
+                                />
                             </div>
                             <div>
-                                <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                                 <input
-                                type="text"
-                                id="username"
-                                name="username"
-                                value={registerData.username}
-                                onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
-                                required
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    required
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white"
+                                    value={registerData.email}
+                                    onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
+                                />
                             </div>
-                            <div>
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+                            <div className="relative">
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                                 <input
-                                type="password"
-                                id="password"
-                                name="password"
-                                value={registerData.password}
-                                onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                                required
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
+                                    type={showPassword ? "text" : "password"}
+                                    id="password"
+                                    name="password"
+                                    required
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white pr-10"
+                                    value={registerData.password}
+                                    onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute top-[2.15rem] right-3 flex items-center text-sm"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <EyeOff className="h-5 w-5 text-gray-500 dark:text-gray-400" /> : <Eye className="h-5 w-5 text-gray-500 dark:text-gray-400" />}
+                                </button>
                             </div>
-                            {error && <Notification message={error} type="error" />}
-                            {successMessage && <Notification message={successMessage} type="success" />}
-                            <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                Create Account
+                            <div className="relative">
+                                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>
+                                <input
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    id="confirmPassword"
+                                    name="confirmPassword"
+                                    required
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white pr-10"
+                                    value={registerData.confirmPassword}
+                                    onChange={(e) => setRegisterData({...registerData, confirmPassword: e.target.value})}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute top-[2.15rem] right-3 flex items-center text-sm"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                >
+                                    {showConfirmPassword ? <EyeOff className="h-5 w-5 text-gray-500 dark:text-gray-400" /> : <Eye className="h-5 w-5 text-gray-500 dark:text-gray-400" />}
+                                </button>
+                            </div>
+                            <button
+                                type="submit"
+                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <Loader className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    'Create Account'
+                                )}
                             </button>
-                            <div className="text-center mt-4">
-                                <p className="text-sm text-gray-600">
-                                    Already have an account?{" "}
-                                    <button onClick={openLoginModal} className="text-blue-600 hover:text-blue-800 font-medium">
-                                        Login
-                                    </button>
-                                </p>
-                            </div>
                         </form>
                     </div>
                 </div>
@@ -591,54 +487,67 @@ const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
             {/* Login Modal */}
             {isLoginModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg p-8 max-w-md w-full">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">Login to WalletX</h2>
-                            <button onClick={closeModals} className="text-gray-500 hover:text-gray-700">
+                            <h2 className="text-2xl font-bold">Sign In to WalletX</h2>
+                            <button onClick={closeModals} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
-                        {error && <p className="text-red-500 text-sm">{error}</p>} {/* Display error message */}
+                        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
                         <form className="space-y-4" onSubmit={handleLogin}>
                             <div>
-                                <label htmlFor="login-email" className="block text-sm font-medium text-gray-700">Email</label>
+                                <label htmlFor="loginEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                                 <input
-                                type="email"
-                                id="login-email"
-                                name="email"
-                                value={loginData.email}
-                                onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                                required
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
+                                    type="email"
+                                    id="loginEmail"
+                                    name="email"
+                                    required
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white"
+                                    value={loginData.email}
+                                    onChange={(e) => setLoginData({...loginData, email: e.target.value})}
+                                />
                             </div>
-                            <div>
-                                <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">Password</label>
+                            <div className="relative">
+                                <label htmlFor="loginPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                                 <input
-                                type="password"
-                                id="login-password"
-                                name="password"
-                                value={loginData.password}
-                                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                                required
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
+                                    type={showLoginPassword ? "text" : "password"}
+                                    id="loginPassword"
+                                    name="password"
+                                    required
+                                    className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white pr-10"
+                                    value={loginData.password}
+                                    onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute top-[2.15rem] right-3 flex items-center text-sm"
+                                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                                >
+                                    {showLoginPassword ? <EyeOff className="h-5 w-5 text-gray-500 dark:text-gray-400" /> : <Eye className="h-5 w-5 text-gray-500 dark:text-gray-400" />}
+                                </button>
                             </div>
-                            {error && <Notification message={error} type="error" />}
-                            {successMessage && <Notification message={successMessage} type="success" />}
-                            <button type="submit" className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                Login
+                            <button
+                                type="submit"
+                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <Loader className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    'Sign In'
+                                )}
                             </button>
-                            <div className="text-center mt-4">
-                                <p className="text-sm text-gray-600">
-                                    Don't have an account?{" "}
-                                    <button onClick={openRegisterModal} className="text-blue-600 hover:text-blue-800 font-medium">
-                                        Create account
-                                    </button>
-                                </p>
-                            </div>
                         </form>
                     </div>
+                </div>
+            )}
+
+            {/* Notifications */}
+            {(error || successMessage) && (
+                <div className="fixed bottom-5 right-5 z-50">
+                    {error && <Notification message={error} type="error" />}
+                    {successMessage && <Notification message={successMessage} type="success" />}
                 </div>
             )}
         </div>
