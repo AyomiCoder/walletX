@@ -36,9 +36,14 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    setDisplayedTransactions(showAllTransactions ? transactions : transactions.slice(0, 7))
+    // Sort transactions in descending order (most recent first)
+    const sortedTransactions = [...transactions].sort((a, b) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+    setDisplayedTransactions(showAllTransactions ? sortedTransactions : sortedTransactions.slice(0, 7))
     calculateCashFlow()
   }, [transactions, showAllTransactions])
+
 
   const fetchUserData = async () => {
     const token = localStorage.getItem('token')
@@ -97,7 +102,6 @@ export default function Dashboard() {
             amount: parsedAmount
           }
         })
-          .sort((a: { date: string | number | Date; }, b: { date: string | number | Date; }) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         setTransactions(formattedTransactions)
       } else {
@@ -410,7 +414,7 @@ export default function Dashboard() {
     ])
 
     // Add transaction table
-     // @ts-ignore
+    // @ts-ignore
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
@@ -463,7 +467,7 @@ export default function Dashboard() {
     })
 
     // Add footer with page numbers
-     // @ts-ignore
+    // @ts-ignore
     const pageCount = doc.internal.getNumberOfPages()
     doc.setFontSize(8)
     doc.setTextColor(127, 140, 141)
@@ -580,8 +584,8 @@ export default function Dashboard() {
                   <div key={index} className={`flex justify-between items-center p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                     <div className="flex items-center space-x-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.type === 'credit'
-                          ? (isDarkMode ? 'bg-green-600 text-white' : 'bg-green-100 text-green-600')
-                          : (isDarkMode ? 'bg-red-600 text-white' : 'bg-red-100 text-red-600')
+                        ? (isDarkMode ? 'bg-green-600 text-white' : 'bg-green-100 text-green-600')
+                        : (isDarkMode ? 'bg-red-600 text-white' : 'bg-red-100 text-red-600')
                         }`}>
                         {transaction.type === 'credit' ? <CoinsIcon className="w-4 h-4" /> : <Send className="w-4 h-4" />}
                       </div>
@@ -591,8 +595,8 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <p className={`font-medium text-sm ${transaction.type === 'credit'
-                        ? (isDarkMode ? 'text-green-400' : 'text-green-600')
-                        : (isDarkMode ? 'text-red-400' : 'text-red-600')
+                      ? (isDarkMode ? 'text-green-400' : 'text-green-600')
+                      : (isDarkMode ? 'text-red-400' : 'text-red-600')
                       }`}>
                       {formatter.format(transaction.amount)}
                     </p>
