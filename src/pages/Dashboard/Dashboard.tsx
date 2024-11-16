@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Send, CreditCard, PieChart, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote, CoinsIcon, Repeat, ChevronDown, ArrowDownRight, ArrowUpRight, Sun, Moon, Eye, EyeOff, Loader } from 'lucide-react'
+import { Send, CreditCard, Settings, PlusCircle, X, Download, LogOut, User, Lock, StickyNote, CoinsIcon, Repeat, ChevronDown, ArrowDownRight, ArrowUpRight, Sun, Moon, Eye, EyeOff, Loader } from 'lucide-react'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 
